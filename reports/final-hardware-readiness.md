@@ -8,19 +8,28 @@ firmware) is reported as REL, since it is not proven electrically identical to t
 
 ## Deliverable
 `artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb`
-sha256 `82bc7083ed7fb6eb275aadabccdb7a5c81a88e394bd42b646911963a068023cf` (`13,334,464` bytes): patches 0001–0018 plus EU board data
+sha256 `ca4bba72e500c30d04fb866848d92f95e88b6d4b2ebad55ed9d0b6811dc159c6` (`13,329,492` bytes): patches 0001–0025 plus EU board data
 generated from TP-Link's signed 1.2.1 image (local only, not committed). **RAM boot
-only.** Validator: 69 checks PASS, 0 FAIL. `tools/fit-verify.py` confirms the FIT
-hashes and `config@mp02.1`. Rebuild: `tools/bdf/board-data-from-tplink-firmware.sh` then
-`tools/build-dev.sh --variant dev`.
+only.** Validator: 75 checks PASS, 0 FAIL. `tools/fit-verify.py` confirms the FIT
+hashes and `config@mp02.1`. Board data repacked with 2 explicit variant-qualified keys
+(no unqualified fallback); `board2.py scoped --eu` PASS both radios. Rebuild:
+`tools/bdf/board-data-from-tplink-firmware.sh` then `tools/build-dev.sh --variant dev`.
 
 ## What this phase changed (each is a commit)
 | Change | Why | Evidence |
 |---|---|---|
+| board-2.bin packed with **two explicit variant-qualified keys** (255 and 36/96); no unqualified fallback | an unqualified `bus=ahb,qmi-chip-id=0` fallback could silently serve wrong board data to any radio with an unmapped OTP id | SRC, BUILD (`board2.py scoped --eu` PASS both radios) |
 | board-2.bin resolves for **any OTP board id** (255, OEM 36/96, chip-id fallback) | a programmed OTP would have brought back "failed to fetch board data" | SRC (`ath11k_core_fetch_bdf`), OEM (DT board_id), BUILD gate on the built rootfs |
 | **0016** wcss-sec: no inline coredump | Q6 crash held both radios down 5 min | SRC + REL (IPQ6018 HW), main `b97760cbc9` |
 | **0017** `ax23_radios=` bring-up profiles | isolate each radio and the simultaneous start-up memory peak on the first boot | BUILD, 10/10 logic tests |
 | **0018** RX rings aligned with the reference profiles | 0002 had two unreferenced values | SRC review |
+| **0019** ath11k: unwind descriptor banks owned by the caller | partial allocation freed the global WBM array instead of the per-radio arrays | SRC (Codex) |
+| **0020** skip implicit UBI data attach on AX23 RAM target | prevents unintended probe of a non-essential partition | SRC (Codex) |
+| **0021** report incomplete radio holds; keep 5 GHz held on 2.4 GHz start failure | a failed 2.4 GHz start previously released the 5 GHz hold silently | BUILD, 13/13 logic tests (Codex) |
+| **0022** release WBM idle ring and earlier TX FIFOs on DP setup failure | pre-allocated rings leaked on partial startup | SRC (Codex) |
+| **0023** preserve per-unit factory regulatory calibration in both ART segments | 0001 caldata fix must not clear factory regulatory words from the RAM copy | SRC + BUILD caldata test (Codex) |
+| **0024** hold IPQ5018 CMN PLL bus clocks past initial probe | premature clock disable on the AHB path | SRC (Codex) |
+| **0025** wait for RTL8367S-VB chip and SerDes reset to settle | correct chip/PCS settling intervals for the family-D switch | SRC + REL (Codex) |
 | Self-diagnostic: UBI-ro, remoteproc/coredump, driver binding, firmware/board lines, slab, `--bundle` | first boot must yield a complete, redacted evidence bundle | BUILD lint + SIM (twin S06, earlier version) |
 | NAND write-path audit | every kernel write path ends at `-EROFS` or does not run in initramfs | SRC/BUILD |
 | Memory budget corrected | link-descriptor banks (2 × order-9 per radio, 8.6 MiB) had been omitted | SRC |

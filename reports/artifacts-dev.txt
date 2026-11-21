@@ -1,12 +1,9 @@
-# Artifact validation (dev) 2026-11-21T19:12:10Z
-PASS initramfs FIT present: openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb (13334464 bytes)
-PASS FIT has config@mp02.1 (stock U-Boot selects this)
-PASS kernel load address 0x41000000
-PASS decompressed kernel 23552008 < 50331648 bytes (no overlap with FIT at 0x44000000)
-PASS FIT ends below Q6 reserved region 0x4b000000
-PASS extracted DTB from FIT image 1
+# Artifact validation (dev) 2026-11-21T22:02:51Z
+PASS initramfs FIT present: openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb (13329492 bytes)
+PASS FIT hashes, default config, kernel addresses and decompressed extent
 PASS dtb: model
 PASS dtb: compatible
+PASS dtb: exactly 16 physical partition nodes
 PASS dtb: partition count 16 found
 PASS dtb: partition 0:SBL1 offset/size got ('0x0', '0x80000') want ('0x0', '0x80000')
 PASS dtb: partition 0:MIBIB offset/size got ('0x80000', '0x80000') want ('0x80000', '0x80000')
@@ -24,22 +21,22 @@ PASS dtb: partition rootfs_1 offset/size got ('0x3bc0000', '0x3580000') want ('0
 PASS dtb: partition tp_data offset/size got ('0x7140000', '0x840000') want ('0x7140000', '0x840000')
 PASS dtb: partition radio offset/size got ('0x7980000', '0x440000') want ('0x7980000', '0x440000')
 PASS dtb: partition data offset/size got ('0x7dc0000', '0x80000') want ('0x7dc0000', '0x80000')
-PASS dtb: partition rootfs_1 read-only
+PASS dtb: partition 0:DEVCFG read-only
+PASS dtb: partition radio read-only
+PASS dtb: partition 0:BOOTCONFIG read-only
+PASS dtb: partition 0:APPSBL read-only
+PASS dtb: partition data read-only
 PASS dtb: partition 0:BOOTCONFIG1 read-only
 PASS dtb: partition 0:TRAINING read-only
-PASS dtb: partition 0:SBL1 read-only
-PASS dtb: partition 0:CDT read-only
 PASS dtb: partition 0:ART read-only
 PASS dtb: partition 0:MIBIB read-only
-PASS dtb: partition 0:BOOTCONFIG read-only
-PASS dtb: partition tp_data read-only
-PASS dtb: partition rootfs read-only
-PASS dtb: partition 0:DEVCFG read-only
+PASS dtb: partition 0:CDT read-only
+PASS dtb: partition rootfs_1 read-only
 PASS dtb: partition 0:APPSBLENV read-only
-PASS dtb: partition 0:APPSBL read-only
+PASS dtb: partition rootfs read-only
 PASS dtb: partition 0:QSEE read-only
-PASS dtb: partition radio read-only
-PASS dtb: partition data read-only
+PASS dtb: partition 0:SBL1 read-only
+PASS dtb: partition tp_data read-only
 PASS dtb: no partition overlap
 PASS dtb: partitions within 128 MiB 0x7e40000
 PASS dtb: erase-block aligned
@@ -51,6 +48,7 @@ PASS dtb: wifi@b00a040 fw-memory-mode 2 <0x02>
 PASS dtb: qcn6122 userpd2
 PASS dtb: qcn6122 bdf-addr inside q6 region
 PASS dtb: ipq5018 bdf-addr
+PASS dtb: IPQ5018 Q6 uses the MPD remoteproc driver
 PASS dtb: q6 region 0x4b000000+0x3000000 (covers bdf/m3 addrs) [[0, 1258291200, 0, 50331648]]
 PASS dtb: 2.4G LED on phy0tpt {'led-wifi-5g': '"phy1tpt"', 'led-wifi-2g': '"phy0tpt"'}
 PASS dtb: 5G LED on phy1tpt {'led-wifi-5g': '"phy1tpt"', 'led-wifi-2g': '"phy0tpt"'}
@@ -60,13 +58,21 @@ PASS no patch backup files in /lib/preinit
 PASS tp_data preinit handles AX23 v2
 PASS 02_network handles AX23 v2
 PASS IPQ5018 board-2.bin contains the AX23 v2 variant
-PASS IPQ5018 board-2.bin resolves to one board file for any OTP board id (ath11k lookup chain)
+PASS IPQ5018 exact AX23 variant keys and no board.bin fallback
 PASS QCN6122 board-2.bin contains the AX23 v2 variant
-PASS QCN6122 board-2.bin resolves to one board file for any OTP board id (ath11k lookup chain)
+PASS QCN6122 exact AX23 variant keys and no board.bin fallback
 PASS Q6 firmware present
+PASS selected FIT kernel contains both staged radio modules, EU board data and startup hooks
 PASS caldata regdomain fix present
 PASS sysupgrade interlock present
-INFO rootfs size 30072 KiB
+INFO rootfs size 29816 KiB
+PASS kernel enables MTD_OF_PARTS
+PASS kernel enables QCOM_Q6V5_MPD
+PASS kernel disables MTD_PARTITIONED_MASTER
+PASS kernel disables MTD_CMDLINE_PARTS
+PASS kernel disables DEVMEM
+PASS kernel disables SPI_SPIDEV
 PASS ath11k built from patched backports source (FW-mode-2 RX ring sizing)
+PASS host allocation regression on prepared ath11k driver source
 PASS ath11k built with FW-mode-2 TX completion ring sizing (961)
 fails=0

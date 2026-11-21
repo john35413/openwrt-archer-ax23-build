@@ -1,8 +1,15 @@
 variant=dev
-built=2026-11-21T19:12:11Z
+built=2026-11-21T22:02:52Z
 openwrt=98b1185d039344553aaf8270d0661cfad4f0a54d
 ax23=93028b47d291e251dc108de5fbd8bd3f77a9300c
-build_tree_head=d76f9b0aa742b9968e59d95d82a64f5086c16284
+build_tree_head=5456e1079f282541590d75295f1fb9725e77fd83
+  5456e1079f net: dsa: realtek: wait for family D chip reset and SerDes settling
+  e75cd8023c clk: qcom: hold the IPQ5018 CMN PLL bus clocks during probe and use
+  b864c1e6f5 qualcommax: preserve factory regulatory calibration on both AX23 radios
+  8005350679 mac80211: ath11k: release WBM idle ring and TX FIFOs on setup failure
+  73e00a83d1 qualcommax: report incomplete radio holds and keep sequential startup ordered
+  bd607729f5 qualcommax: skip implicit UBI data attach on the AX23 RAM development target
+  641a86e457 mac80211: ath11k: unwind the descriptor banks owned by the caller
   d76f9b0aa7 mac80211: ath11k: low-memory RX rings follow the reference profiles
   a5a884786b qualcommax: ipq50xx: archer-ax23-v2: radio bring-up profiles
   330ad1f486 qualcommax: wcss-sec: don't hold firmware recovery for a coredump
@@ -26,5 +33,3 @@ feed_packages=a16d10144dd3f854a57d9a512dfa84f990b45d65
 feed_luci=4bc2f85da82894c6a5d28ab1b610ca6e6ffc29ba
 feed_routing=4b9891b9136259f93294a424507ed24c5e8c1cbd
 host=Linux 6.18.44-fc-v726 x86_64 gcc=13.3.0
-# NOTE: patches 0019-0025 added after this build; rebuild required for the current series.
-# Rebuild: tools/bdf/board-data-from-tplink-firmware.sh && tools/build-dev.sh --variant dev
