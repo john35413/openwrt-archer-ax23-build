@@ -85,7 +85,10 @@ Check the gate lines the self-diagnostic prints:
   buddyinfo + /proc/mtd; nothing written on the router).
 - **Switch reset line (optional, owner-approved, after the above is green):**
   `oem-openwrt-differential-analysis.md` §3: read GPIO 26/39 states, then try the
-  GPIO-26 variant image and repeat the 20× boot test on both.
+  GPIO-26 variant image and repeat the 20× boot test on both. OEM code resets the
+  switch on GPIO 26, active low (`rtl8367-reset-trace.md` §1). The variant must use the
+  stock timing (assert ≥ 200 ms, ≥ 200 ms before the first MDIO access) and needs
+  continuity on GPIO 26 first (§5 there); selfdiag S2.8 records both lines.
 - **Gate:** all of the above green. **This is the full RAM-boot acceptance.** If any
   Wi-Fi gate fails, the root-cause map in `wifi-root-cause.md` §6 says what next;
   **do not proceed to Stage 4+.**

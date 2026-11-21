@@ -116,6 +116,12 @@ r S2.5 INFO "777-08 SerDes re-latch events" "$n"
 # shellcheck disable=SC2046  # word splitting of the address list is intended
 for i in br-lan wan; do r S2.6 INFO "address $i" "$(ipred $(ip -4 -o addr show dev "$i" 2>/dev/null | awk '{print $4}'))"; done
 r S2.7 INFO "default route via" "$(ip -4 route show default 2>/dev/null | awk '{print $5}')"
+# switch reset candidates: GPIO 26 (OEM U-Boot + stock kernel) vs GPIO 39 (our DTS); only if debugfs is already mounted
+for g in 26 39; do
+	s=$(grep -E "gpio-$g( |\$)|\bgpio$g\b" /sys/kernel/debug/gpio 2>/dev/null | head -1 | tr -s ' ')
+	m=$(grep -E "^pin $g \(" /sys/kernel/debug/pinctrl/*/pinmux-pins 2>/dev/null | head -1 | sed 's#.*pinmux-pins:##')
+	r S2.8 INFO "reset candidate GPIO $g" "gpio=[${s:-unclaimed or debugfs absent}] mux=[${m:-n/a}]"
+done
 
 # ---- Stage 3: Wi-Fi bring-up ---------------------------------------------
 [ -e /lib/firmware/ath11k/AX23-V2-BOARD-DATA-MISSING ] && r S3.1 BLOCKED "board data packaged" "image built without board files"

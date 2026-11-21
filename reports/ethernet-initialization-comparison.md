@@ -1,5 +1,7 @@
 # Ethernet / RTL8367S-VB initialisation: OEM vs ours vs siblings
 
+**Reset trace (OEM binary + GPL source, [rtl8367-reset-trace.md](rtl8367-reset-trace.md)).** TP-Link's U-Boot and the signed stock kernel both reset the RTL8367 on GPIO 26, active low (U-Boot 500 ms, kernel 200 ms); GPIO 39 is read only by the QCA8337 code path. The DTS keeps 39 until continuity is measured. The vendor also applies a 129-write SerDes patch (`SDSNctrlPatch`) that our driver lacks; it is proprietary and has no open implementation, so it is recorded as a candidate cause of sibling 2.5 G failures, not imported.
+
 **Codex source comparison.** The signed EU DT has two different reset properties. Their physical destinations remain unknown. Keep GPIO 39 pending passive continuity or waveform evidence. Of ten 777 patches in two pinned sibling trees, eight differ in bytes from the project pin and none showed an executable hunk difference. The separate 778 conduit-up change remains a candidate if the trunk reports carrier while dropping frames. See [the patch audit](codex-patch-audit.md) for revisions.
 
 Labels as in `wifi-root-cause.md`. Complements `ethernet-nat-validation.md`.
