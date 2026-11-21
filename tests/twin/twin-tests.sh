@@ -68,7 +68,7 @@ while :; do
 	sleep 10
 done
 EOS
-R 'nohup sh /tmp/memsampler.sh >/dev/null 2>&1 &'
+R 'setsid sh /tmp/memsampler.sh </dev/null >/dev/null 2>&1 &'; sleep 11   # setsid survives the SSH channel close
 RAMLBL="${TWIN_RAM:-200M}"; LOADS="${TWIN_LOAD_SEC:-180}"
 
 # S06: the hardware self-diagnostic runs under the image's BusyBox ash and changes nothing

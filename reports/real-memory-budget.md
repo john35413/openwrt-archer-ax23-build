@@ -83,10 +83,20 @@ phase and an optional 30-min soak. **What it does and does not show:**
   §2 and the order-9 allocation risk are **absent** from the twin. The twin cannot
   falsify or confirm the driver-memory hypothesis — only the host-stack part.
 
-Results (`logs/twin/matrix/summary.tsv`): see that file for the per-size
-pass/fail, min `MemAvailable`, load-phase slope and OOM-line count actually recorded.
-The 200 MiB baseline run reported MemAvailable ≈73 MiB with 4 SSIDs + 2 clients and
-0 OOM (`digital-twin.md`).
+Results so far (`logs/twin/matrix/summary.tsv`):
+- **200 MiB baseline:** 48/48, MemAvailable ≈73 MiB with 4 SSIDs + 2 clients, 0 OOM.
+- **176 MiB + 30-min soak:** **49/49 PASS, 0 FAIL**, MemAvailable ≈46 MiB with 4
+  SSIDs + 2 clients; the 30-minute mixed load (iperf both bands + wired NAT +
+  LuCI/DNS/DHCP churn) held with **0% LAN ping loss, 0 OOM, 0 kernel error**, and
+  reboot recovery in 111 s. (This run predated the memory-sampler fix, so its
+  per-10 s `MemAvailable` trend/slope was not captured; later runs record it.)
+- **128/160/200 MiB discrete:** see the file for pass/fail, min `MemAvailable`,
+  load-phase slope (kB/h — a near-zero slope means no leak) and OOM-line count.
+
+So the OpenWrt **host stack** stays responsive and OOM-free at **176 MiB**, below the
+AX23's ~173 MiB MemTotal — evidence that the non-driver memory pressure is survivable.
+This says nothing about the ~8 MiB of ath11k host DMA (§2), which hwsim does not
+model; only hardware settles that.
 
 ## 6. The single hardware observation that settles this
 One RAM boot of the dev image, then over SSH (captured by `ax23-selfdiag.sh`):
