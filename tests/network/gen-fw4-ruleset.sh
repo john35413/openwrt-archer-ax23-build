@@ -14,7 +14,7 @@
 set -euo pipefail
 PROJ="$(cd "$(dirname "$0")/../.." && pwd)"
 V="${1:-dev}"; OUT="${2:-$PROJ/logs/network/fw4-generated-$V.nft}"
-ROOT=$(ls -d "$PROJ"/build/"$V"/openwrt/build_dir/target-*/root-qualcommax 2>/dev/null | head -1)
+ROOT=$(ls -d "$PROJ"/build/"$V"/openwrt/build_dir/target-*/root-qualcommax 2>/dev/null | head -1 || true)
 [ -d "$ROOT" ] || { echo "BLOCKED: no built rootfs for $V"; exit 77; }
 command -v qemu-aarch64-static >/dev/null || { echo "BLOCKED: qemu-user-static missing"; exit 77; }
 # Temporary binfmt_misc handler so aarch64 children run inside the chroot;

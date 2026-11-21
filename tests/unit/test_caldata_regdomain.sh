@@ -12,7 +12,8 @@
 set -u
 PROJ="$(cd "$(dirname "$0")/../.." && pwd)"
 BASE="${BASE_CALDATA:-$PROJ/upstream/openwrt/package/base-files/files/lib/functions/caldata.sh}"
-PATCHED="${PATCHED_CALDATA:-$PROJ/build/patchwork/package/base-files/files/lib/functions/caldata.sh}"
+PATCHED="${PATCHED_CALDATA:-$PROJ/build/dev/openwrt/package/base-files/files/lib/functions/caldata.sh}"
+[ -r "$PATCHED" ] || { echo "SKIP no prepared dev caldata.sh"; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 command -v hexdump >/dev/null || { echo "SKIP hexdump not installed"; exit 77; }
 
