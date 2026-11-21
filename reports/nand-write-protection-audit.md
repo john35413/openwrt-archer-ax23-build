@@ -1,5 +1,7 @@
 # NAND write-protection audit of the RAM-boot image
 
+**Codex update for the current dev series.** 0020 bypasses the generic UBI auto-attach on this board, superseding section 2. Explicit tp_data attachment still runs for factory reads. Require a read-only mount and read-only UBI; on the actual unit inventory every MTD node and flag, with no test writes. The checker now rejects extra physical partitions and diagnostics fail on unreadable flags.
+
 Question: with patch 0015 (all 16 DT partitions `read-only`), can **any** Linux code
 path in the RAM-boot image write the AX23's NAND? Labels as in `wifi-root-cause.md`.
 Everything here is **SRC/BUILD** (our exact kernel 6.18.55 tree and the built

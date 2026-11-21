@@ -1,5 +1,7 @@
 # Driver crash and recovery risk audit
 
+**Codex correction to C1 and section 4.** The AX23 compatible selects qcom_q6v5_mpd.c. Patch 0016 acts on a different driver. Actual MPD recovery and recovery duration require a live event. Capture the driver symlink, state, recovery policy and timestamps passively.
+
 Question: once the router boots, what could make it lose Wi-Fi or crash every few
 hours, and what does the image do about it? Labels as in `wifi-root-cause.md`.
 

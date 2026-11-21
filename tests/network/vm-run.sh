@@ -5,7 +5,7 @@
 # logs/network is writable from the VM.
 set -euo pipefail
 PROJ="$(cd "$(dirname "$0")/../.." && pwd)"
-KERNEL="${VM_KERNEL:-$(ls /boot/vmlinuz-*-generic 2>/dev/null | sort -V | tail -1)}"
+KERNEL="${VM_KERNEL:-$(ls /boot/vmlinuz-*-generic 2>/dev/null | sort -V | tail -1 || true)}"
 OUT="$PROJ/logs/network"; mkdir -p "$OUT"; rm -f "$OUT/results.tsv" "$OUT/vm.done"
 [ -r "$KERNEL" ] || { echo "BLOCKED: no VM kernel (install linux-image-virtual)"; exit 77; }
 command -v vng >/dev/null || { echo "BLOCKED: virtme-ng not installed (pip install virtme-ng)"; exit 77; }

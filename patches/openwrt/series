@@ -16,3 +16,10 @@
 0016-qualcommax-wcss-sec-don-t-hold-firmware-recovery-for.patch
 0017-qualcommax-ipq50xx-archer-ax23-v2-radio-bring-up-pro.patch
 0018-mac80211-ath11k-low-memory-RX-rings-follow-the-refer.patch
+0019-mac80211-ath11k-unwind-the-requested-descriptor-banks.patch
+0020-qualcommax-ax23-skip-implicit-ubi-attach.patch
+0021-qualcommax-report-incomplete-radio-holds.patch
+0022-mac80211-ath11k-unwind-partial-dp-startup.patch
+0023-qualcommax-preserve-AX23-factory-regulatory-calibration.patch
+0024-qualcommax-ipq5018-keep-CMN-bus-clocks.patch
+0025-qualcommax-wait-for-RTL8367S-VB-chip-and-SerDes-reset.patch

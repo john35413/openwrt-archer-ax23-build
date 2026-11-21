@@ -13,6 +13,7 @@ run() {	# run name cmd...
 	grep -E "^(PASS|FAIL|SKIP)|^N[0-9]+ |^ok|^FAIL|SUMMARY| ... ok$| ... FAIL| ... ERROR" "logs/test-$n.log" | sed 's/^/   /' | tail -60
 	case $rc in 0) st=PASS ;; 77) st=SKIP ;; *) st=FAIL; total_fail=$((total_fail+1)) ;; esac
 	printf '%s\t%s\t%s\n' "$n" "$st" "logs/test-$n.log" >>"$SUM"; echo "   -> $st"
+	return "$rc"
 }
 case "$SUITE" in static|all) run static tests/static/run-static.sh ;; esac
 case "$SUITE" in unit|all)

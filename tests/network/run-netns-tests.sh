@@ -117,7 +117,9 @@ echo "hello-from-internet" >"$W/index.html"
 head -c 5000000 /dev/urandom >"$W/blob.bin"; BLOBSUM=$(sha256sum <"$W/blob.bin" | cut -d' ' -f1)
 x inet busybox httpd -p 80 -h "$W" &
 x inet iperf3 -s -D --pidfile "$W/iperf.pid"
-x inet socat -T 5 UDP6-RECVFROM:5353,fork,reuseaddr EXEC:cat &   # dual-stack UDP echo
+# Bind each listener to the ISP test destination so replies use the same source.
+x inet socat UDP4-RECVFROM:5353,bind=198.51.100.10,fork EXEC:cat &
+x inet socat 'UDP6-RECVFROM:5353,bind=[2001:db8:100::10],ipv6only=1,fork' EXEC:cat &
 x inet socat TCP-LISTEN:2222,fork,reuseaddr EXEC:'echo inet-tcp-ok' &
 x rtr socat TCP-LISTEN:22,fork,reuseaddr EXEC:'echo router-ssh' &   # stands in for dropbear
 sleep 1

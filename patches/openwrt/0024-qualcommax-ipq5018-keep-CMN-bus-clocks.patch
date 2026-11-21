@@ -1,0 +1,46 @@
+From 22f3029860ce0d5415e2afd967b6acbf7edf4194 Mon Sep 17 00:00:00 2001
+From: Codex <codex@users.noreply.github.com>
+Date: Sat, 21 Nov 2026 22:19:37 +0200
+Subject: [PATCH] clk: qcom: hold the IPQ5018 CMN PLL bus clocks during probe
+ and use
+
+---
+ ...k-qcom-ipq5018-retain-cmn-bus-clocks.patch | 29 +++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+ create mode 100644 target/linux/qualcommax/patches-6.18/0996-clk-qcom-ipq5018-retain-cmn-bus-clocks.patch
+
+diff --git a/target/linux/qualcommax/patches-6.18/0996-clk-qcom-ipq5018-retain-cmn-bus-clocks.patch b/target/linux/qualcommax/patches-6.18/0996-clk-qcom-ipq5018-retain-cmn-bus-clocks.patch
+new file mode 100644
+index 0000000..d5f7baf
+--- /dev/null
++++ b/target/linux/qualcommax/patches-6.18/0996-clk-qcom-ipq5018-retain-cmn-bus-clocks.patch
+@@ -0,0 +1,29 @@
++Subject: clk: qcom: hold the IPQ5018 CMN PLL bus clocks during probe and use
++
++Adapted from Stanislaw Pal, v4, for the IPQ5018 compatible. A managed PM reference is released on unbind and on failed probe. The ordinary resume/get and put remain balanced.
++Source: https://lkml.rescloud.iu.edu/hypermail/linux/kernel/2608.1/10164.html
++
++--- a/drivers/clk/qcom/ipq-cmn-pll.c
+++++ b/drivers/clk/qcom/ipq-cmn-pll.c
++@@ -46,6 +46,7 @@
++ #include <linux/module.h>
++ #include <linux/platform_device.h>
++ #include <linux/pm_clock.h>
+++#include <linux/of.h>
++ #include <linux/pm_runtime.h>
++ #include <linux/regmap.h>
++ 
++@@ -433,6 +434,13 @@
++ 	if (ret)
++ 		return dev_err_probe(dev, ret, "Failed to add SYS clock\n");
++ 
+++	/* An early gate of these bus clocks can stall IPQ5018 during probe. */
+++	if (of_device_is_compatible(dev->of_node, "qcom,ipq5018-cmn-pll")) {
+++		ret = devm_pm_runtime_get_noresume(dev);
+++		if (ret)
+++			return ret;
+++	}
+++
++ 	ret = pm_runtime_resume_and_get(dev);
++ 	if (ret)
++ 		return ret;

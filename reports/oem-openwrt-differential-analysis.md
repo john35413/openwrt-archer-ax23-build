@@ -1,5 +1,7 @@
 # OEM vs OpenWrt: how TP-Link initialises this hardware, and how we do
 
+**Codex correction.** The selected AX23 DT uses the MPD remoteproc driver. The earlier wcss-sec recovery row below describes another driver. EU per-radio data and the unresolved GPIO ownership are documented in [the patch audit](codex-patch-audit.md).
+
 Labels: **OEM** read from TP-Link's official AX23 v2 firmware (1.2.1 FIT `fdt@mp02.1`,
 the configuration its U-Boot boots; stock rootfs), **GPL** TP-Link's GPL tarball
 (U-Boot 2016 + linux-4.4 incl. Qualcomm's reference `qcom-ipq5018-mp02.1.dts`),

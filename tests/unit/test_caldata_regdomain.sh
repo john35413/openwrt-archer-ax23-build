@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Regression test for ath11k_remove_regdomain() called without a target, as
-# 11-ath11k-caldata does for the AX23 v2. Uses the real caldata.sh from the
+# used by other ipq50xx boards. AX23 preserves its factory regulatory words. Uses the real caldata.sh from the
 # pristine OpenWrt base and from the patched build tree, on a synthetic
 # 128 KiB caldata image (random bytes + a known regdomain at 0x34 and one
 # copy at 0x450). No real calibration data is used.
@@ -12,20 +12,26 @@
 set -u
 PROJ="$(cd "$(dirname "$0")/../.." && pwd)"
 BASE="${BASE_CALDATA:-$PROJ/upstream/openwrt/package/base-files/files/lib/functions/caldata.sh}"
-PATCHED="${PATCHED_CALDATA:-$PROJ/build/patchwork/package/base-files/files/lib/functions/caldata.sh}"
+PATCHED="${PATCHED_CALDATA:-$PROJ/build/dev/openwrt/package/base-files/files/lib/functions/caldata.sh}"
+[ -r "$PATCHED" ] || { echo "SKIP no prepared dev caldata.sh"; exit 77; }
+HOOK="$PROJ/build/dev/openwrt/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata"
+python3 -I - "$HOOK" <<'CHECK' || exit 1
+import sys
+from pathlib import Path
+hook = Path(sys.argv[1]).read_text()
+radios = (
+    ("ath11k/IPQ5018/hw1.0/cal-ahb-c000000.wifi.bin", "0x1000"),
+    ("ath11k/QCN6122/hw1.0/cal-ahb-b00a040.wifi.bin", "0x26800"),
+)
+for name, offset in radios:
+    path = hook.split(f'"{name}")', 1)[1].split("esac", 1)[0]
+    board = path.split("tplink,archer-ax23-v2)", 1)[1].split(";;", 1)[0]
+    if f'caldata_extract "0:ART" {offset} 0x20000' not in board or "ath11k_remove_regdomain" in board:
+        sys.exit(f"FAIL factory regulatory calibration policy: {name}")
+    print(f"PASS {name} preserves regulatory words from its own ART segment")
+CHECK
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 command -v hexdump >/dev/null || { echo "SKIP hexdump not installed"; exit 77; }
-
-# The function under test defaults to /lib/firmware/$FIRMWARE. If the host has
-# no /lib/firmware, re-run inside a private mount namespace where an overlay on
-# /usr/lib provides one; the host filesystem is never modified.
-if [ ! -d /lib/firmware ] && [ -z "${IN_NS:-}" ]; then
-	command -v unshare >/dev/null || { echo "SKIP no /lib/firmware and no unshare"; exit 77; }
-	mkdir -p "$T/u" "$T/w"
-	exec unshare -m --propagation private env IN_NS=1 OVL="$T" bash -c '
-		mount -t overlay overlay -o lowerdir=/usr/lib,upperdir="$OVL/u",workdir="$OVL/w" /usr/lib &&
-		mkdir -p /lib/firmware && exec bash "$0"' "$0"
-fi
 
 mkimg() {
 	head -c 131072 /dev/urandom >"$1"
@@ -39,25 +45,23 @@ mkimg() {
 }
 at() { hexdump -v -n 2 -s "$2" -e '1/1 "%02x"' "$1"; }
 
-run() {	# run caldata.sh image -> prints 4 values
-	local lib="$1" img="$2"
-	# caldata_patch_data() writes /lib/firmware/$FIRMWARE; point FIRMWARE at
-	# our temp file through a relative path so nothing in /lib is touched.
-	(
-		set +u
-		d=$(dirname "$lib")	# .../lib/functions
-		mkdir -p /lib/functions
-		cp "$d/../functions.sh" /lib/functions.sh
-		cp "$d/system.sh" /lib/functions/system.sh
-		# shellcheck disable=SC1090
-		. "$lib"
-		mkdir -p /lib/firmware/t && cp "$img" /lib/firmware/t/cal.bin
-		export FIRMWARE="t/cal.bin"
-		ath11k_remove_regdomain </dev/null
-		cp /lib/firmware/t/cal.bin "$img"
-	) 2>/dev/null
-	echo "$(at "$img" 0x34) $(at "$img" 0x450) $(at "$img" 0x458) $(at "$img" 0x500) $(at "$img" 0x5a8)"
-}
+run() (
+    local lib="$1" img="$2" d
+    d=$(dirname "$lib")
+    cd "$T" || exit 1
+    mkdir -p lib/functions lib/firmware/t
+    cp "$d/../functions.sh" lib/functions.sh
+    # Relocate only absolute OpenWrt dependency and firmware paths in the fixture.
+    sed 's|^\. /lib/functions|. ./lib/functions|' "$d/system.sh" >lib/functions/system.sh
+    sed -e 's|^\. /lib/functions|. ./lib/functions|' -e 's|/lib/firmware/|./lib/firmware/|g' "$lib" >lib/functions/caldata.sh
+    set +u
+    . ./lib/functions/caldata.sh
+    export FIRMWARE=t/cal.bin
+    cp "$img" "lib/firmware/$FIRMWARE"
+    ath11k_remove_regdomain </dev/null >&2
+    cp "lib/firmware/$FIRMWARE" "$img"
+    echo "$(at "$img" 0x34) $(at "$img" 0x450) $(at "$img" 0x458) $(at "$img" 0x500) $(at "$img" 0x5a8)"
+)
 
 rc=0
 for which in base patched; do

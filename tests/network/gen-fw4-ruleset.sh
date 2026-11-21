@@ -14,19 +14,22 @@
 set -euo pipefail
 PROJ="$(cd "$(dirname "$0")/../.." && pwd)"
 V="${1:-dev}"; OUT="${2:-$PROJ/logs/network/fw4-generated-$V.nft}"
-ROOT=$(ls -d "$PROJ"/build/"$V"/openwrt/build_dir/target-*/root-qualcommax 2>/dev/null | head -1)
+ROOT=$(ls -d "$PROJ"/build/"$V"/openwrt/build_dir/target-*/root-qualcommax 2>/dev/null | head -1 || true)
 [ -d "$ROOT" ] || { echo "BLOCKED: no built rootfs for $V"; exit 77; }
-command -v qemu-aarch64-static >/dev/null || { echo "BLOCKED: qemu-user-static missing"; exit 77; }
+QEMU=$(command -v qemu-aarch64-static || command -v qemu-aarch64 || true)
+if [ -z "$QEMU" ] || ! file -Lb "$QEMU" | grep -Eq 'static-pie linked|statically linked'; then
+    echo "BLOCKED: static AArch64 user emulator missing"; exit 77
+fi
 # Temporary binfmt_misc handler so aarch64 children run inside the chroot;
 # removed again on exit if this script registered it.
 BF=/proc/sys/fs/binfmt_misc; REG=0
 [ -e $BF/register ] || mount -t binfmt_misc binfmt_misc $BF 2>/dev/null || true
 if [ ! -e $BF/qemu-aarch64 ] && [ -w $BF/register ]; then
-	printf '%s' ':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/usr/bin/qemu-aarch64-static:F' >$BF/register && REG=1
+	printf '%s:%s:F' ':qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff' "$QEMU" >$BF/register && REG=1
 fi
 [ -e $BF/qemu-aarch64 ] || { echo "BLOCKED: cannot register qemu-aarch64 binfmt handler"; exit 77; }
 W=$(mktemp -d); trap 'umount -l "$W/r/proc" "$W/r/dev" 2>/dev/null; rm -rf "$W"; [ $REG = 1 ] && echo -1 >$BF/qemu-aarch64' EXIT
-cp -a "$ROOT" "$W/r"; cp /usr/bin/qemu-aarch64-static "$W/r/usr/bin/"
+cp -a "$ROOT" "$W/r"; cp "$QEMU" "$W/r/usr/bin/"
 mkdir -p "$W/r/proc" "$W/r/dev" "$W/r/tmp/sysinfo" "$W/r/var/lock"
 mount -t proc proc "$W/r/proc"; mount --rbind /dev "$W/r/dev"
 echo "tplink,archer-ax23-v2" >"$W/r/tmp/sysinfo/board_name"
