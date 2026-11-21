@@ -14,6 +14,8 @@ __pycache__/
 /logs/twin/.helper-entry.sh
 # matrix/soak per-run working dirs (bulky regenerated VM logs); summary.tsv is kept
 /logs/twin/matrix/*/
+/logs/twin/matrix-run.log
+/logs/twin/matrix-discrete.log
 /logs/nand/.vm-entry.sh
 /logs/nand/*.log
 /logs/nand/console.txt
