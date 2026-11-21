@@ -1,0 +1,16 @@
+{
+	"pi-monitor": {
+		"description": "Read-only monitoring for the Raspberry Pi",
+		"read": {
+			"ubus": {
+				"system": [ "board", "info" ],
+				"network.interface": [ "dump" ],
+				"network.device": [ "status" ],
+				"network.wireless": [ "status" ],
+				"iwinfo": [ "devices", "info", "assoclist" ],
+				"luci-rpc": [ "getDHCPLeases" ],
+				"log": [ "read" ]
+			}
+		}
+	}
+}

@@ -52,7 +52,7 @@ run() {	# run caldata.sh image -> prints 4 values
 		# shellcheck disable=SC1090
 		. "$lib"
 		mkdir -p /lib/firmware/t && cp "$img" /lib/firmware/t/cal.bin
-		FIRMWARE="t/cal.bin"
+		export FIRMWARE="t/cal.bin"
 		ath11k_remove_regdomain </dev/null
 		cp /lib/firmware/t/cal.bin "$img"
 	) 2>/dev/null

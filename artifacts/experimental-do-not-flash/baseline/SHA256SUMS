@@ -1,0 +1,4 @@
+347e0c5db73c11c9ab50f2cd0fdf710ce37939f0b9de182bbff0778928aba23b  DO-NOT-FLASH.txt
+8915df9d3f3df72d65f08119a5e224ac68532505f2f192bf0070910194b618c5  openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-factory.ubi
+3ee883ffbcb7191233a5faa0f0a4f945437af853f53de7df1e34c33cd3c8d814  openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-squashfs-factory.ubi
+c8569eb793f3af9ac9b82367d1d1399a6258accbcea6a619d75c5a8a436d4020  openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-squashfs-sysupgrade.bin

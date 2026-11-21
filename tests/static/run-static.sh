@@ -4,14 +4,14 @@
 set -u
 PROJ="$(cd "$(dirname "$0")/../.." && pwd)"
 rc=0; p() { echo "PASS $*"; }; f() { echo "FAIL $*"; rc=1; }; s() { echo "SKIP $*"; }
-cd "$PROJ"
+cd "$PROJ" || exit 1
 # 1. shell syntax + shellcheck (warnings and above) on project scripts
 for x in $(git ls-files '*.sh' 2>/dev/null || find tools tests -name '*.sh'); do
 	sh_=$(head -1 "$x" | grep -q bash && echo bash || echo sh)
 	$sh_ -n "$x" 2>/dev/null && p "syntax $x" || f "syntax $x"
 done
 if command -v shellcheck >/dev/null; then
-	shellcheck -S warning -e SC2015,SC1090,SC1091 $(git ls-files '*.sh') >logs/shellcheck.txt 2>&1 \
+	git ls-files -z '*.sh' | xargs -0 shellcheck -S warning -e SC2015,SC1090,SC1091 >logs/shellcheck.txt 2>&1 \
 		&& p "shellcheck (warning+) on all project scripts" || f "shellcheck: see logs/shellcheck.txt"
 else s "shellcheck not installed"; fi
 # 2. python byte-compile

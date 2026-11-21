@@ -48,6 +48,30 @@ def prop(body, name):
 
 
 def cells(v):
+    """Integer cells from '<0x.. 0x..>' or from dtc's string rendering of
+    printable cell bytes (e.g. 0x4c400000 is printed as "L@\\0")."""
+    v = v.strip()
+    if v.startswith('"'):
+        raw = bytearray()
+        body = v[1:v.rindex('"')]
+        i = 0
+        while i < len(body):
+            c = body[i]
+            if c == "\\":
+                n = body[i + 1]
+                if n == "0":
+                    raw.append(0)
+                elif n == "x":
+                    raw.append(int(body[i + 2:i + 4], 16)); i += 2
+                else:
+                    raw.append({"n": 10, "t": 9, "r": 13}.get(n, ord(n)))
+                i += 2
+                continue
+            raw.append(ord(c)); i += 1
+        raw.append(0)  # implicit terminator dtc assumed
+        if len(raw) % 4:
+            return []
+        return [int.from_bytes(raw[j:j + 4], "big") for j in range(0, len(raw), 4)]
     return [int(x, 16) for x in re.findall(r"0x[0-9a-fA-F]+", v)]
 
 
@@ -60,7 +84,7 @@ def main():
         res.append({"check": name, "status": "PASS" if ok else "FAIL", "detail": detail})
 
     check("model", 'model = "TP-Link Archer AX23 v2"' in text)
-    check("compatible", '"tplink,archer-ax23-v2"' in text)
+    check("compatible", re.search(r'compatible = "tplink,archer-ax23-v2(\\0|")', text) is not None)
 
     parts = {}
     for _, body in nodes(text, r"partition@[0-9a-f]+"):

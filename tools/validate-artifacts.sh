@@ -11,6 +11,8 @@ DEV=tplink_archer-ax23-v2
 OUT="$PROJ/reports/artifacts-$VARIANT.txt"
 WORK="$PROJ/build/validate-$VARIANT"; rm -rf "$WORK"; mkdir -p "$WORK"
 HOSTBIN="$OWRT/staging_dir/host/bin"
+DUMPIMAGE="$HOSTBIN/dumpimage"; [ -x "$DUMPIMAGE" ] || DUMPIMAGE=$(command -v dumpimage || true)
+[ -n "$DUMPIMAGE" ] || { echo "dumpimage missing (apt install u-boot-tools)"; exit 1; }
 FAILS=0
 r() { printf '%-4s %s\n' "$1" "$2" | tee -a "$OUT"; [ "$1" = FAIL ] && FAILS=$((FAILS+1)); return 0; }
 : >"$OUT"
@@ -20,7 +22,7 @@ ITB=$(ls "$BIN"/*"$DEV"-initramfs-uImage.itb 2>/dev/null | head -1)
 [ -f "$ITB" ] && r PASS "initramfs FIT present: $(basename "$ITB") ($(stat -c%s "$ITB") bytes)" || { r FAIL "initramfs FIT missing"; exit 1; }
 
 # --- FIT layout
-"$HOSTBIN/dumpimage" -l "$ITB" >"$WORK/fit.txt" 2>&1 || true
+"$DUMPIMAGE" -l "$ITB" >"$WORK/fit.txt" 2>&1 || true
 grep -q "config@mp02.1" "$WORK/fit.txt" && r PASS "FIT has config@mp02.1 (stock U-Boot selects this)" || r FAIL "FIT lacks config@mp02.1"
 grep -q "Load Address: 0x41000000" "$WORK/fit.txt" && r PASS "kernel load address 0x41000000" || r FAIL "unexpected kernel load address"
 
@@ -39,7 +41,7 @@ fsz=$(stat -c%s "$ITB"); [ "$fsz" -lt $((0x4b000000 - 0x44000000)) ] && r PASS "
 
 # --- embedded DTB
 n=$(awk '/Image [0-9]+ \(fdt/{gsub(/[^0-9]/,"",$2); print $2; exit}' "$WORK/fit.txt")
-if [ -n "$n" ] && "$HOSTBIN/dumpimage" -T flat_dt -p "$n" -o "$WORK/board.dtb" "$ITB" >/dev/null 2>&1; then
+if [ -n "$n" ] && "$DUMPIMAGE" -T flat_dt -p "$n" -o "$WORK/board.dtb" "$ITB" >/dev/null 2>&1; then
 	dtc -q -I dtb -O dts -o "$WORK/board.dts" "$WORK/board.dtb"
 	r PASS "extracted DTB from FIT image $n"
 	python3 -I "$PROJ/tests/static/check_dtb.py" "$WORK/board.dts" >"$WORK/dtb-checks.txt" || true

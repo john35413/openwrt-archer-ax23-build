@@ -1,0 +1,63 @@
+# Artifact validation (baseline) 2026-11-21T07:55:01Z
+PASS initramfs FIT present: openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb (12607424 bytes)
+PASS FIT has config@mp02.1 (stock U-Boot selects this)
+PASS kernel load address 0x41000000
+PASS decompressed kernel 22831112 < 50331648 bytes (no overlap with FIT at 0x44000000)
+PASS FIT ends below Q6 reserved region 0x4b000000
+PASS extracted DTB from FIT image 1
+PASS dtb: model
+PASS dtb: compatible
+PASS dtb: partition count 16 found
+PASS dtb: partition 0:SBL1 offset/size got ('0x0', '0x80000') want ('0x0', '0x80000')
+PASS dtb: partition 0:MIBIB offset/size got ('0x80000', '0x80000') want ('0x80000', '0x80000')
+PASS dtb: partition 0:BOOTCONFIG offset/size got ('0x100000', '0x40000') want ('0x100000', '0x40000')
+PASS dtb: partition 0:BOOTCONFIG1 offset/size got ('0x140000', '0x40000') want ('0x140000', '0x40000')
+PASS dtb: partition 0:QSEE offset/size got ('0x180000', '0x100000') want ('0x180000', '0x100000')
+PASS dtb: partition 0:DEVCFG offset/size got ('0x280000', '0x40000') want ('0x280000', '0x40000')
+PASS dtb: partition 0:CDT offset/size got ('0x2c0000', '0x40000') want ('0x2c0000', '0x40000')
+PASS dtb: partition 0:APPSBLENV offset/size got ('0x300000', '0x80000') want ('0x300000', '0x80000')
+PASS dtb: partition 0:APPSBL offset/size got ('0x380000', '0x140000') want ('0x380000', '0x140000')
+PASS dtb: partition 0:ART offset/size got ('0x4c0000', '0x100000') want ('0x4c0000', '0x100000')
+PASS dtb: partition 0:TRAINING offset/size got ('0x5c0000', '0x80000') want ('0x5c0000', '0x80000')
+PASS dtb: partition rootfs offset/size got ('0x640000', '0x3580000') want ('0x640000', '0x3580000')
+PASS dtb: partition rootfs_1 offset/size got ('0x3bc0000', '0x3580000') want ('0x3bc0000', '0x3580000')
+PASS dtb: partition tp_data offset/size got ('0x7140000', '0x840000') want ('0x7140000', '0x840000')
+PASS dtb: partition radio offset/size got ('0x7980000', '0x440000') want ('0x7980000', '0x440000')
+PASS dtb: partition data offset/size got ('0x7dc0000', '0x80000') want ('0x7dc0000', '0x80000')
+PASS dtb: partition 0:CDT read-only
+PASS dtb: partition 0:APPSBL read-only
+PASS dtb: partition 0:ART read-only
+PASS dtb: partition 0:BOOTCONFIG1 read-only
+PASS dtb: partition 0:BOOTCONFIG read-only
+PASS dtb: partition radio read-only
+PASS dtb: partition 0:DEVCFG read-only
+PASS dtb: partition 0:MIBIB read-only
+PASS dtb: partition 0:SBL1 read-only
+PASS dtb: partition 0:QSEE read-only
+PASS dtb: partition tp_data read-only
+PASS dtb: partition 0:TRAINING read-only
+PASS dtb: no partition overlap
+PASS dtb: partitions within 128 MiB 0x7e40000
+PASS dtb: erase-block aligned
+PASS dtb: two radios enabled wifi@b00a040,wifi@c000000
+PASS dtb: wifi@c000000 calibration-variant
+PASS dtb: wifi@c000000 fw-memory-mode 2 <0x02>
+PASS dtb: wifi@b00a040 calibration-variant
+PASS dtb: wifi@b00a040 fw-memory-mode 2 <0x02>
+PASS dtb: qcn6122 userpd2
+PASS dtb: qcn6122 bdf-addr inside q6 region
+PASS dtb: ipq5018 bdf-addr
+PASS dtb: q6 region 0x4b000000+0x3000000 (covers bdf/m3 addrs) [[0, 1258291200, 0, 50331648]]
+FAIL dtb: 2.4G LED on phy0tpt {'led-wifi-5g': '"phy0tpt"', 'led-wifi-2g': '"phy1tpt"'}
+FAIL dtb: 5G LED on phy1tpt {'led-wifi-5g': '"phy0tpt"', 'led-wifi-2g': '"phy1tpt"'}
+PASS dtb: rtl8365mb switch@1d
+PASS dtb: cpu port 2500base-x
+PASS no patch backup files in /lib/preinit
+PASS tp_data preinit handles AX23 v2
+PASS 02_network handles AX23 v2
+INFO IPQ5018 board-2.bin ABSENT (no locally supplied board data) -> Wi-Fi BLOCKED, same -12 as baseline
+INFO QCN6122 board-2.bin ABSENT (no locally supplied board data) -> Wi-Fi BLOCKED, same -12 as baseline
+PASS Q6 firmware present
+INFO baseline: no sysupgrade interlock (falls through to default_do_upgrade)
+INFO rootfs size 25676 KiB
+fails=2

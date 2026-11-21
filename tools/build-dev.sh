@@ -29,12 +29,14 @@ VARIANT=dev
 JOBS="$(nproc)"
 SEED_FROM=""
 STAGE_ONLY=0
+RESUME=0
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--variant) VARIANT="$2"; shift 2 ;;
 	--jobs) JOBS="$2"; shift 2 ;;
 	--seed-from) SEED_FROM="$2"; shift 2 ;;
 	--stage-only) STAGE_ONLY=1; shift ;;
+	--resume) RESUME=1; shift ;;	# skip checkout/staging/feeds/config (tree already prepared)
 	-h|--help) sed -n '3,30p' "$0"; exit 0 ;;
 	*) echo "unknown argument: $1" >&2; exit 2 ;;
 	esac
@@ -239,8 +241,9 @@ s_kernel() {
 	cd "$OWRT"
 	make -j"$JOBS" tools/install toolchain/install
 	make -j"$JOBS" target/linux/compile
-	# DTB must exist and must have been produced from our DTS
-	find build_dir/target-*/linux-qualcommax_ipq50xx/ -name 'ipq5018-archer-ax23-v2.dtb' | grep .
+	# DTBs are compiled in the image step (validated in stage 10); here only
+	# require the kernel image itself.
+	ls build_dir/target-*/linux-qualcommax_ipq50xx/linux-*/arch/arm64/boot/Image
 }
 s_world() {
 	cd "$OWRT"
@@ -249,7 +252,13 @@ s_world() {
 
 # ---------------------------------------------------------------- 10 validate
 s_validate() {
-	"$PROJ/tools/validate-artifacts.sh" "$OWRT" "$VARIANT"
+	# The baseline reproduces the upstream tree including its known defects
+	# (e.g. D3 LED mapping); record them but do not stop the collection.
+	if [ "$VARIANT" = baseline ]; then
+		"$PROJ/tools/validate-artifacts.sh" "$OWRT" "$VARIANT" || echo "baseline: known upstream defects recorded in reports/artifacts-baseline.txt"
+	else
+		"$PROJ/tools/validate-artifacts.sh" "$OWRT" "$VARIANT"
+	fi
 }
 
 # ---------------------------------------------------------------- 11 collect
@@ -284,12 +293,18 @@ EOF
 
 say "pipeline start (jobs=$JOBS)"
 run_stage 01 deps s_deps
-run_stage 02 checkout s_checkout
-run_stage 03 verify-sha s_verify
-run_stage 04 stage-ax23 s_stage_ax23
-[ "$VARIANT" = dev ] && run_stage 05 dev-patches s_dev_patches
-run_stage 06 feeds s_feeds
-run_stage 07 config s_config
+if [ "$RESUME" = 1 ]; then
+	say "resume: keeping prepared tree $(git -C "$OWRT" log --oneline -1)"
+	git -C "$OWRT" merge-base --is-ancestor "$OPENWRT_SHA" HEAD || die "resume: tree is not based on $OPENWRT_SHA"
+	[ "$VARIANT" = dev ] && run_stage 05b board-data s_board_data
+else
+	run_stage 02 checkout s_checkout
+	run_stage 03 verify-sha s_verify
+	run_stage 04 stage-ax23 s_stage_ax23
+	[ "$VARIANT" = dev ] && run_stage 05 dev-patches s_dev_patches
+	run_stage 06 feeds s_feeds
+	run_stage 07 config s_config
+fi
 [ "$STAGE_ONLY" = 1 ] && { say "stage-only requested; stopping before compile"; exit 0; }
 [ -n "$SEED_FROM" ] && run_stage 07b seed s_seed "$SEED_FROM"
 run_stage 08 kernel s_kernel

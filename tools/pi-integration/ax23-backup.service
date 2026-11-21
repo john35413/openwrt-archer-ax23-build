@@ -1,0 +1,8 @@
+[Unit]
+Description=AX23 router config backup
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+ExecStart=/home/pi/ax23/backup-router.sh

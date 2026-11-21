@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily AX23 router config backup
+
+[Timer]
+OnCalendar=*-*-* 03:17:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

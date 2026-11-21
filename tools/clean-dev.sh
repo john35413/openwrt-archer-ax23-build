@@ -14,4 +14,4 @@ read -r -p "Type DELETE to confirm: " a
 for t in "${T[@]}"; do case "$t" in "$PROJ"/build/*|"$PROJ"/upstream) rm -rf -- "$t" ;; *) echo "refusing $t" ;; esac; done
 git -C "$PROJ/upstream/openwrt" worktree prune 2>/dev/null || true
 find "$PROJ/artifacts" -type f \( -name '*.itb' -o -name '*.ubi' -o -name '*.bin' \) -delete
-echo done
+echo "cleanup complete"

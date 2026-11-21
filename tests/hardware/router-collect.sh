@@ -43,7 +43,8 @@ elif echo "$D" | grep -q "failed to fetch board"; then r H11 BLOCKED "radios reg
 else r H11 FAIL "radios registered" "$nphy phys"; fi
 [ -e /lib/firmware/ath11k/AX23-V2-BOARD-DATA-MISSING ] && r H12 BLOCKED "board data packaged" "image built without locally supplied board files"
 echo "$D" | grep "ath11k" | grep -E "board|bdf|qmi failed|-12" | tail -4 | while read -r x; do r H13 INFO "ath11k board/qmi log" "$x"; done
-for ph in $(ls /sys/class/ieee80211 2>/dev/null); do
+for phd in /sys/class/ieee80211/*; do
+	[ -e "$phd" ] || continue; ph=${phd##*/}
 	band=$(iw phy "$ph" info 2>/dev/null | grep -q "2412 MHz" && echo 2.4G || echo 5G)
 	r H14 INFO "phy band mapping (LED triggers assume phy0=2.4G)" "$ph=$band"
 done

@@ -37,11 +37,11 @@ find "$W/ubi" -type f -printf '      %f %s bytes\n'
 
 echo "[2/4] unpacking squashfs volume(s)"
 n=0
-for v in $(find "$W/ubi" -type f); do
+while IFS= read -r -d '' v; do
 	if [ "$(head -c4 "$v")" = "hsqs" ]; then
 		n=$((n+1)); unsquashfs -q -n -d "$W/fs$n" "$v" >/dev/null 2>&1 || true
 	fi
-done
+done < <(find "$W/ubi" -type f -print0)
 [ $n -gt 0 ] || { echo "no squashfs volume found - is this the stock firmware slot?"; exit 1; }
 
 echo "[3/4] candidate board files (128 KiB bdwlan.*)"

@@ -4,7 +4,7 @@
 # Writes logs/test-<suite>.log and a combined reports/test-summary.tsv.
 # None of these suites touches a router. "network" is a SIMULATION.
 set -u
-PROJ="$(cd "$(dirname "$0")/.." && pwd)"; cd "$PROJ"
+PROJ="$(cd "$(dirname "$0")/.." && pwd)"; cd "$PROJ" || exit 1
 SUITE="${1:-all}"; SUM="$PROJ/reports/test-summary.tsv"; mkdir -p logs reports
 : >"$SUM"; total_fail=0
 run() {	# run name cmd...

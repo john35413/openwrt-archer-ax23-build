@@ -140,11 +140,23 @@ echo "$out" | grep -q "198.51.100.10" && res N06 PASS "DNS via router forwarder 
 
 x c1 ping -c3 -W1 192.168.1.1 >/dev/null && res N07 PASS "LAN client reaches router" || res N07 FAIL "LAN client reaches router"
 
-before=$(x rtr nft list counter inet fw4 lan_fwd | awk '/packets/{print $2}')
+# independent probe table (works with any ruleset under test): counts IPv4
+# packets c1->c2 that the router FORWARDS (would mean routed, not switched)
+x rtr nft -f - <<NFT
+table inet l2probe {
+	counter routed {
+	}
+	chain probe_fwd {
+		type filter hook forward priority -500; policy accept;
+		ip saddr $C1 ip daddr $C2 counter name routed
+	}
+}
+NFT
 x c1 ping -c5 -i0.2 -W1 "$C2" >/dev/null; okc=$?
-after=$(x rtr nft list counter inet fw4 lan_fwd | awk '/packets/{print $2}')
-[ $okc -eq 0 ] && [ "$before" = "$after" ] && res N08 PASS "client-to-client switched at L2 (not routed)" "fw4 lan_fwd delta=$((after-before))" \
-	|| res N08 FAIL "client-to-client L2" "rc=$okc delta=$((after-before))"
+fwd=$(x rtr nft list counter inet l2probe routed | awk '/packets/{print $2}')
+x rtr nft delete table inet l2probe
+[ $okc -eq 0 ] && [ "${fwd:-x}" = 0 ] && res N08 PASS "client-to-client switched at L2 (not routed)" "router forwarded=$fwd" \
+	|| res N08 FAIL "client-to-client L2" "rc=$okc forwarded=$fwd"
 
 x inet tcpdump -ni up1 -c1 -w "$W/nat.pcap" icmp >/dev/null 2>&1 & TD=$!; sleep 0.5
 x c1 ping -c3 -W1 198.51.100.10 >/dev/null; okp=$?
