@@ -1,0 +1,2100 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: AX23_V2_OPENWRT <ax23-v2-openwrt@users.noreply.invalid>
+Date: Sat, 21 Nov 2026 16:40:41 +0000
+Subject: [PATCH 14/14] mac80211: backport ath11k and mac80211 fixes from
+ OpenWrt main
+
+Take the patch files that OpenWrt main added after our base
+98b1185d03 for the drivers this board uses, unchanged:
+
+  ath11k 102-118 (from main fe0aacd956 "mac80211: ath11k: backport 17
+    upstream fixes"): NULL dereference in ahb remove when QMI init is
+    incomplete, PM notifier and reg_info leaks on init failure,
+    dp_srng_setup leak, rx_tid locking, IDR mutation during mgmt TX
+    cleanup, WMI TLV/CSA overreads, regulatory phy_id validation,
+    out-of-range rx MCS
+  ath11k 954-956 and subsys 484-490 (from main 24c13d794c "mac80211:
+    backport nine upstream fixes"): unbalanced IRQ enable/disable,
+    short management RX frames, ext IRQ setup leak; mac80211
+    use-after-frees on station/chanctx teardown and an oversized
+    fragment extra_len overflow a peer can trigger
+
+The upstream commits also refresh other patch files for offsets that
+depend on intermediate upstream changes, so only the new files are
+taken. The whole mac80211 patch set (including 960/961 of this
+project) applies to the pristine backports-7.2 tarball with no
+rejects and no fuzz.
+---
+ ...out-of-range-rx-MCS-instead-of-leavi.patch |  96 +++++++++
+ ...d-buffer-overread-in-ath11k_wmi_tlv_.patch |  47 +++++
+ ...ectly-copy-the-hint-BSSID-in-WMI-sca.patch |  41 ++++
+ ...alidate-regulatory-capability-phy_id.patch |  38 ++++
+ ...overreads-in-ath11k_wmi_process_csa_.patch |  83 ++++++++
+ ...leak-in-ath11k_service_ready_ext_eve.patch |  34 +++
+ ...-NULL-dereference-in-ahb-remove-when.patch |  59 ++++++
+ ...gister-PM-notifier-on-QMI-init-failu.patch |  39 ++++
+ ...possible-memory-leak-in-ath11k_dp_sr.patch |  43 ++++
+ ...locking-problem-in-ath11k_dp_rx_tid_.patch |  91 ++++++++
+ ...fy-null-check-logic-in-ath11k_ce_rx_.patch |  39 ++++
+ ...nup-arsta-in-ath11k_mac_peer_cleanup.patch | 109 ++++++++++
+ ...et-ar-num_stations-on-hardware-start.patch |  48 +++++
+ ...reg_info_store-leak-in-ath11k_servic.patch |  48 +++++
+ ...ifi-ath11k-read-wiphy-regd-under-RCU.patch |  30 +++
+ ...d-IDR-mutation-during-pending-mgmt-T.patch |  79 +++++++
+ ...d-IDR-mutation-during-vif-mgmt-TX-cl.patch |  64 ++++++
+ ...enable-disable-during-suspend-resume.patch |  87 ++++++++
+ ...1k-reject-short-management-RX-frames.patch |  38 ++++
+ ...ource-leak-on-error-in-ext-IRQ-setup.patch | 199 ++++++++++++++++++
+ ...-airtime-for-unsupported-rate-widths.patch |  83 ++++++++
+ ...c80211-keep-paired-old-chanctx-alive.patch |  96 +++++++++
+ ...hing-reservations-in-reserved-switch.patch | 126 +++++++++++
+ ...elivery-work-during-station-teardown.patch |  71 +++++++
+ ...down-RX-BA-session-timer-on-teardown.patch |  41 ++++
+ ...ragments-to-avoid-extra_len-overflow.patch |  86 ++++++++
+ ...reshold-setting-for-single-radio-PHY.patch |  40 ++++
+ 27 files changed, 1855 insertions(+)
+ create mode 100644 package/kernel/mac80211/patches/ath11k/102-wifi-ath11k-cap-out-of-range-rx-MCS-instead-of-leavi.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/103-wifi-ath11k-Avoid-buffer-overread-in-ath11k_wmi_tlv_.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/104-wifi-ath11k-Correctly-copy-the-hint-BSSID-in-WMI-sca.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/105-wifi-ath11k-validate-regulatory-capability-phy_id.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/106-wifi-ath11k-fix-overreads-in-ath11k_wmi_process_csa_.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/107-wifi-ath11k-fix-leak-in-ath11k_service_ready_ext_eve.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/108-wifi-ath11k-fix-NULL-dereference-in-ahb-remove-when.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/109-wifi-ath11k-unregister-PM-notifier-on-QMI-init-failu.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/110-wifi-ath11k-Fix-possible-memory-leak-in-ath11k_dp_sr.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/111-wifi-ath11k-fix-locking-problem-in-ath11k_dp_rx_tid_.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/112-wifi-ath11k-modify-null-check-logic-in-ath11k_ce_rx_.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/113-wifi-ath11k-cleanup-arsta-in-ath11k_mac_peer_cleanup.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/114-wifi-ath11k-reset-ar-num_stations-on-hardware-start.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/115-wifi-ath11k-fix-reg_info_store-leak-in-ath11k_servic.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/116-wifi-ath11k-read-wiphy-regd-under-RCU.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/117-wifi-ath11k-avoid-IDR-mutation-during-pending-mgmt-T.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/118-wifi-ath11k-avoid-IDR-mutation-during-vif-mgmt-TX-cl.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/954-wifi-ath11k-fix-unbalanced-IRQ-enable-disable-during-suspend-resume.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/955-wifi-ath11k-reject-short-management-RX-frames.patch
+ create mode 100644 package/kernel/mac80211/patches/ath11k/956-wifi-ath11k-fix-resource-leak-on-error-in-ext-IRQ-setup.patch
+ create mode 100644 package/kernel/mac80211/patches/subsys/484-wifi-mac80211-don-t-estimate-airtime-for-unsupported-rate-widths.patch
+ create mode 100644 package/kernel/mac80211/patches/subsys/485-wifi-mac80211-keep-paired-old-chanctx-alive.patch
+ create mode 100644 package/kernel/mac80211/patches/subsys/486-wifi-mac80211-count-only-matching-reservations-in-reserved-switch.patch
+ create mode 100644 package/kernel/mac80211/patches/subsys/487-wifi-mac80211-drain-PS-delivery-work-during-station-teardown.patch
+ create mode 100644 package/kernel/mac80211/patches/subsys/488-wifi-mac80211-shut-down-RX-BA-session-timer-on-teardown.patch
+ create mode 100644 package/kernel/mac80211/patches/subsys/489-wifi-mac80211-drop-oversized-fragments-to-avoid-extra_len-overflow.patch
+ create mode 100644 package/kernel/mac80211/patches/subsys/490-wifi-cfg80211-fix-RTS-threshold-setting-for-single-radio-PHY.patch
+
+diff --git a/package/kernel/mac80211/patches/ath11k/102-wifi-ath11k-cap-out-of-range-rx-MCS-instead-of-leavi.patch b/package/kernel/mac80211/patches/ath11k/102-wifi-ath11k-cap-out-of-range-rx-MCS-instead-of-leavi.patch
+new file mode 100644
+index 0000000000..092b6d4eb3
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/102-wifi-ath11k-cap-out-of-range-rx-MCS-instead-of-leavi.patch
+@@ -0,0 +1,96 @@
++From 12b09e478aa7459b7893a695ef77682202f2da83 Mon Sep 17 00:00:00 2001
++From: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Date: Wed, 1 Jul 2026 09:49:13 +0800
++Subject: [PATCH] wifi: ath11k: cap out-of-range rx MCS instead of leaving
++ bogus rate
++
++ath11k can receive HT/VHT/HE frames whose reported MCS is above the
++maximum that can be expressed in the corresponding mac80211 rate space
++(e.g. an HE frame reported with MCS 12, while HE tops out at MCS 11).
++
++The frame itself is valid and decodes correctly, but for such a frame
++ath11k_dp_rx_h_rate() leaves rx_status->rate_idx set to the out-of-range
++value and never assigns rx_status->encoding, so it stays RX_ENC_LEGACY
++from the ath11k_dp_rx_h_ppdu() initialization. Once that frame reaches
++mac80211 it trips the rate sanity check and the frame is dropped with a
++splat:
++
++  ath11k_pci 0000:03:00.0: Received with invalid mcs in HE mode 12
++  WARNING: CPU: 0 PID: 0 at net/mac80211/rx.c:5433 ieee80211_rx_list+0xb0a/0xe90 [mac80211]
++
++Dropping the frame would discard otherwise valid data, so instead cap the
++reported MCS to the maximum the rate space can express and deliver the
++frame. Set rx_status->encoding before the range check and assign rate_idx
++from the capped value, so a frame with an out-of-range MCS no longer
++leaves partial or bogus rate metadata behind. Also downgrade the logging
++level since they are not treated as invalid frames now. The only loss is
++that such a frame is reported as the capped MCS in the rx rate statistics.
++
++Tested-on: WCN6855 hw2.1 PCI WLAN.HSP.1.1-03125-QCAHSPSWPL_V1_V2_SILICONZ_LITE-3.6510.41
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Signed-off-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260701-ath11k-invalid-he-mcs-v1-1-7d963080c079@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/dp_rx.c | 30 ++++++++++++-------------
++ 1 file changed, 15 insertions(+), 15 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/dp_rx.c
+++++ b/drivers/net/wireless/ath/ath11k/dp_rx.c
++@@ -2334,10 +2334,10 @@ static void ath11k_dp_rx_h_rate(struct a
++ 	case RX_MSDU_START_PKT_TYPE_11N:
++ 		rx_status->encoding = RX_ENC_HT;
++ 		if (rate_mcs > ATH11K_HT_MCS_MAX) {
++-			ath11k_warn(ar->ab,
++-				    "Received with invalid mcs in HT mode %d\n",
++-				     rate_mcs);
++-			break;
+++			ath11k_dbg(ar->ab, ATH11K_DBG_DP_RX,
+++				   "Received HT frame with out-of-range mcs %d, capping to %d\n",
+++				   rate_mcs, ATH11K_HT_MCS_MAX);
+++			rate_mcs = ATH11K_HT_MCS_MAX;
++ 		}
++ 		rx_status->rate_idx = rate_mcs + (8 * (nss - 1));
++ 		if (sgi)
++@@ -2346,13 +2346,13 @@ static void ath11k_dp_rx_h_rate(struct a
++ 		break;
++ 	case RX_MSDU_START_PKT_TYPE_11AC:
++ 		rx_status->encoding = RX_ENC_VHT;
++-		rx_status->rate_idx = rate_mcs;
++ 		if (rate_mcs > ATH11K_VHT_MCS_MAX) {
++-			ath11k_warn(ar->ab,
++-				    "Received with invalid mcs in VHT mode %d\n",
++-				     rate_mcs);
++-			break;
+++			ath11k_dbg(ar->ab, ATH11K_DBG_DP_RX,
+++				   "Received VHT frame with out-of-range mcs %d, capping to %d\n",
+++				   rate_mcs, ATH11K_VHT_MCS_MAX);
+++			rate_mcs = ATH11K_VHT_MCS_MAX;
++ 		}
+++		rx_status->rate_idx = rate_mcs;
++ 		rx_status->nss = nss;
++ 		if (sgi)
++ 			rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
++@@ -2362,14 +2362,14 @@ static void ath11k_dp_rx_h_rate(struct a
++ 			rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
++ 		break;
++ 	case RX_MSDU_START_PKT_TYPE_11AX:
++-		rx_status->rate_idx = rate_mcs;
+++		rx_status->encoding = RX_ENC_HE;
++ 		if (rate_mcs > ATH11K_HE_MCS_MAX) {
++-			ath11k_warn(ar->ab,
++-				    "Received with invalid mcs in HE mode %d\n",
++-				    rate_mcs);
++-			break;
+++			ath11k_dbg(ar->ab, ATH11K_DBG_DP_RX,
+++				   "Received HE frame with out-of-range mcs %d, capping to %d\n",
+++				   rate_mcs, ATH11K_HE_MCS_MAX);
+++			rate_mcs = ATH11K_HE_MCS_MAX;
++ 		}
++-		rx_status->encoding = RX_ENC_HE;
+++		rx_status->rate_idx = rate_mcs;
++ 		rx_status->nss = nss;
++ 		rx_status->he_gi = ath11k_mac_he_gi_to_nl80211_he_gi(sgi);
++ 		rx_status->bw = ath11k_mac_bw_to_mac80211_bw(bw);
+diff --git a/package/kernel/mac80211/patches/ath11k/103-wifi-ath11k-Avoid-buffer-overread-in-ath11k_wmi_tlv_.patch b/package/kernel/mac80211/patches/ath11k/103-wifi-ath11k-Avoid-buffer-overread-in-ath11k_wmi_tlv_.patch
+new file mode 100644
+index 0000000000..81f5f1069a
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/103-wifi-ath11k-Avoid-buffer-overread-in-ath11k_wmi_tlv_.patch
+@@ -0,0 +1,47 @@
++From 9ef9dd30058cc9223c72f711dca1a28a5947d0c5 Mon Sep 17 00:00:00 2001
++From: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++Date: Thu, 16 Jul 2026 13:01:31 -0700
++Subject: [PATCH] wifi: ath11k: Avoid buffer overread in ath11k_wmi_tlv_op_rx()
++
++Currently, in ath11k_wmi_tlv_op_rx(), the firmware buffer is read
++without first verifying that the buffer has enough data to hold a
++header. This could result in a buffer overread.
++
++Add an upfront length check before dereferencing skb->data as a
++wmi_cmd_hdr. The check is placed before the trace_ath11k_wmi_event()
++call to preserve the existing trace semantics (tracing the full raw
++WMI event including the header), unlike the analogous ath12k fix which
++could use skb_pull_data() directly.
++
++Compile tested only.
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Assisted-by: Claude:claude-sonnet-4-6
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260716-ath11k_wmi_tlv_op_rx-overread-v1-1-0b972b3f1368@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/wmi.c | 6 ++++--
++ 1 file changed, 4 insertions(+), 2 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/wmi.c
+++++ b/drivers/net/wireless/ath/ath11k/wmi.c
++@@ -8897,13 +8897,15 @@ static void ath11k_wmi_tlv_op_rx(struct
++ 	struct wmi_cmd_hdr *cmd_hdr;
++ 	enum wmi_tlv_event_id id;
++ 
+++	if (skb->len < sizeof(*cmd_hdr))
+++		goto out;
+++
++ 	cmd_hdr = (struct wmi_cmd_hdr *)skb->data;
++ 	id = FIELD_GET(WMI_CMD_HDR_CMD_ID, (cmd_hdr->cmd_id));
++ 
++ 	trace_ath11k_wmi_event(ab, id, skb->data, skb->len);
++ 
++-	if (skb_pull(skb, sizeof(struct wmi_cmd_hdr)) == NULL)
++-		goto out;
+++	skb_pull(skb, sizeof(*cmd_hdr));
++ 
++ 	switch (id) {
++ 		/* Process all the WMI events here */
+diff --git a/package/kernel/mac80211/patches/ath11k/104-wifi-ath11k-Correctly-copy-the-hint-BSSID-in-WMI-sca.patch b/package/kernel/mac80211/patches/ath11k/104-wifi-ath11k-Correctly-copy-the-hint-BSSID-in-WMI-sca.patch
+new file mode 100644
+index 0000000000..51aab2d7de
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/104-wifi-ath11k-Correctly-copy-the-hint-BSSID-in-WMI-sca.patch
+@@ -0,0 +1,41 @@
++From 6fe2dddf59bbb2a96be0fcf23a205807b25ac173 Mon Sep 17 00:00:00 2001
++From: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++Date: Mon, 13 Jul 2026 09:15:50 -0700
++Subject: [PATCH] wifi: ath11k: Correctly copy the hint BSSID in WMI scan
++ request
++
++Currently, in ath11k_wmi_send_scan_start_cmd(), the logic to populate
++the hint_bssid copies the BSSID in the wrong direction, from the
++firmware message to the argument buffer. Swap the parameters so that
++the BSSID is correctly populated in the firmware message from the
++argument buffer.
++
++This issue was reported on ath12k, but exists in ath11k as well.
++
++Compile tested only.
++
++Reported-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Closes: https://lore.kernel.org/linux-wireless/afbff608-a005-43c4-af76-968a58bf0cc3@oss.qualcomm.com/
++Fixes: 74601ecfef6e ("ath11k: Add support for 6g scan hint")
++Assisted-by: Claude:claude-sonnet-4-6
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260713-ath12k_wmi_send_scan_start_cmd-bad-hint_bssid-v1-2-4ffc4a472992@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/wmi.c | 4 ++--
++ 1 file changed, 2 insertions(+), 2 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/wmi.c
+++++ b/drivers/net/wireless/ath/ath11k/wmi.c
++@@ -2423,8 +2423,8 @@ int ath11k_wmi_send_scan_start_cmd(struc
++ 		for (i = 0; i < params->num_hint_bssid; ++i) {
++ 			hint_bssid->freq_flags =
++ 				params->hint_bssid[i].freq_flags;
++-			ether_addr_copy(&params->hint_bssid[i].bssid.addr[0],
++-					&hint_bssid->bssid.addr[0]);
+++			ether_addr_copy(&hint_bssid->bssid.addr[0],
+++					&params->hint_bssid[i].bssid.addr[0]);
++ 			hint_bssid++;
++ 		}
++ 	}
+diff --git a/package/kernel/mac80211/patches/ath11k/105-wifi-ath11k-validate-regulatory-capability-phy_id.patch b/package/kernel/mac80211/patches/ath11k/105-wifi-ath11k-validate-regulatory-capability-phy_id.patch
+new file mode 100644
+index 0000000000..4d062935e3
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/105-wifi-ath11k-validate-regulatory-capability-phy_id.patch
+@@ -0,0 +1,38 @@
++From f8729a40ebcc94d164be8f154483a21669f3ab52 Mon Sep 17 00:00:00 2001
++From: Pengpeng Hou <pengpeng@iscas.ac.cn>
++Date: Sat, 4 Jul 2026 09:10:40 +0800
++Subject: [PATCH] wifi: ath11k: validate regulatory capability phy_id
++
++ath11k_wmi_tlv_ext_hal_reg_caps() copies firmware regulatory
++capability records into soc->hal_reg_cap[] using reg_cap.phy_id as
++the destination index.  The loop count is bounded by num_phy, but the
++phy_id embedded in each record is not checked against the fixed
++MAX_RADIOS-sized destination array.
++
++Reject firmware records whose phy_id does not fit soc->hal_reg_cap[]
++before copying the parsed capability.
++
++Signed-off-by: Pengpeng Hou <pengpeng@iscas.ac.cn>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260704011040.26233-1-pengpeng@iscas.ac.cn
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/wmi.c | 6 ++++++
++ 1 file changed, 6 insertions(+)
++
++--- a/drivers/net/wireless/ath/ath11k/wmi.c
+++++ b/drivers/net/wireless/ath/ath11k/wmi.c
++@@ -4860,6 +4860,12 @@ static int ath11k_wmi_tlv_ext_hal_reg_ca
++ 			return ret;
++ 		}
++ 
+++		if (reg_cap.phy_id >= ARRAY_SIZE(soc->hal_reg_cap)) {
+++			ath11k_warn(soc, "invalid reg cap phy_id %u\n",
+++				    reg_cap.phy_id);
+++			return -EINVAL;
+++		}
+++
++ 		memcpy(&soc->hal_reg_cap[reg_cap.phy_id],
++ 		       &reg_cap, sizeof(reg_cap));
++ 	}
+diff --git a/package/kernel/mac80211/patches/ath11k/106-wifi-ath11k-fix-overreads-in-ath11k_wmi_process_csa_.patch b/package/kernel/mac80211/patches/ath11k/106-wifi-ath11k-fix-overreads-in-ath11k_wmi_process_csa_.patch
+new file mode 100644
+index 0000000000..4a3862e35d
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/106-wifi-ath11k-fix-overreads-in-ath11k_wmi_process_csa_.patch
+@@ -0,0 +1,83 @@
++From 208d7fdb85976a737a715b81d54efaff6703880c Mon Sep 17 00:00:00 2001
++From: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++Date: Fri, 24 Jul 2026 08:56:14 -0700
++Subject: [PATCH] wifi: ath11k: fix overreads in
++ ath11k_wmi_process_csa_switch_count_event()
++
++There is no policy entry for WMI_TAG_PDEV_CSA_SWITCH_COUNT_STATUS_EVENT, so
++the parse infrastructure does not enforce a minimum length for the event
++struct. Additionally, the num_vdevs field is taken directly from firmware
++and used as a loop bound over the vdev_ids array without checking that it
++fits within the TLV payload. Either condition can cause an out-of-bounds
++read.
++
++Add a TLV policy entry for WMI_TAG_PDEV_CSA_SWITCH_COUNT_STATUS_EVENT so
++the parse infrastructure enforces a minimum length for the fixed-size event
++struct. Add a helper ath11k_wmi_tlv_data_len() to recover the payload
++length of a parsed TLV from the header preceding its data pointer. Use it
++in ath11k_wmi_process_csa_switch_count_event() to bound num_vdevs before
++the loop.
++
++Compile tested only.
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Assisted-by: Claude:claude-sonnet-4-6
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260724-ath12k_wmi_process_csa_switch_count_event-cleanup-v2-2-02a45d7246c0@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/wmi.c | 21 +++++++++++++++++++--
++ 1 file changed, 19 insertions(+), 2 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/wmi.c
+++++ b/drivers/net/wireless/ath/ath11k/wmi.c
++@@ -159,6 +159,8 @@ static const struct wmi_tlv_policy wmi_t
++ 		.min_len = sizeof(struct ath11k_wmi_p2p_noa_info) },
++ 	[WMI_TAG_P2P_NOA_EVENT] = {
++ 		.min_len = sizeof(struct wmi_p2p_noa_event) },
+++	[WMI_TAG_PDEV_CSA_SWITCH_COUNT_STATUS_EVENT] = {
+++		.min_len = sizeof(struct wmi_pdev_csa_switch_ev) },
++ };
++ 
++ #define PRIMAP(_hw_mode_) \
++@@ -262,6 +264,13 @@ const void **ath11k_wmi_tlv_parse_alloc(
++ 	return tb;
++ }
++ 
+++static u32 ath11k_wmi_tlv_data_len(const void *data)
+++{
+++	const struct wmi_tlv *tlv = (const struct wmi_tlv *)data - 1;
+++
+++	return FIELD_GET(WMI_TLV_LEN, tlv->header);
+++}
+++
++ static int ath11k_wmi_cmd_send_nowait(struct ath11k_pdev_wmi *wmi, struct sk_buff *skb,
++ 				      u32 cmd_id)
++ {
++@@ -8361,15 +8370,23 @@ ath11k_wmi_process_csa_switch_count_even
++ 					  const struct wmi_pdev_csa_switch_ev *ev,
++ 					  const u32 *vdev_ids)
++ {
++-	int i;
+++	u32 vdev_ids_len = ath11k_wmi_tlv_data_len(vdev_ids);
+++	u32 num_vdevs = ev->num_vdevs;
++ 	struct ath11k_vif *arvif;
+++	int i;
++ 
++ 	/* Finish CSA once the switch count becomes NULL */
++ 	if (ev->current_switch_count)
++ 		return;
++ 
+++	if (num_vdevs > vdev_ids_len / sizeof(*vdev_ids)) {
+++		ath11k_warn(ab, "csa switch count num_vdevs %u exceeds tlv array length %u\n",
+++			    num_vdevs, vdev_ids_len);
+++		return;
+++	}
+++
++ 	rcu_read_lock();
++-	for (i = 0; i < ev->num_vdevs; i++) {
+++	for (i = 0; i < num_vdevs; i++) {
++ 		arvif = ath11k_mac_get_arvif_by_vdev_id(ab, vdev_ids[i]);
++ 
++ 		if (!arvif) {
+diff --git a/package/kernel/mac80211/patches/ath11k/107-wifi-ath11k-fix-leak-in-ath11k_service_ready_ext_eve.patch b/package/kernel/mac80211/patches/ath11k/107-wifi-ath11k-fix-leak-in-ath11k_service_ready_ext_eve.patch
+new file mode 100644
+index 0000000000..5d7102114e
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/107-wifi-ath11k-fix-leak-in-ath11k_service_ready_ext_eve.patch
+@@ -0,0 +1,34 @@
++From 0293be2212d319d59589082461abf2a9b626cd1c Mon Sep 17 00:00:00 2001
++From: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++Date: Mon, 27 Jul 2026 16:39:41 -0700
++Subject: [PATCH] wifi: ath11k: fix leak in ath11k_service_ready_ext_event()
++
++Currently, during ath11k_service_ready_ext_event() processing,
++svc_rdy_ext.mac_phy_caps can be allocated during TLV parsing. This is a
++temporary allocation that is freed on the success path, but not on the
++error path. If parsing succeeds far enough to allocate mac_phy_caps and
++then fails on a later TLV, the allocation leaks. So free the allocation
++on the error path.
++
++Compile tested only.
++
++Fixes: 5b90fc760db5 ("ath11k: fix wmi service ready ext tlv parsing")
++Assisted-by: Claude:claude-sonnet-4-6
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260727-ath11k_service_ready_ext_event-memleak-v1-1-e8373d27bdd1@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/wmi.c | 1 +
++ 1 file changed, 1 insertion(+)
++
++--- a/drivers/net/wireless/ath/ath11k/wmi.c
+++++ b/drivers/net/wireless/ath/ath11k/wmi.c
++@@ -5135,6 +5135,7 @@ static int ath11k_service_ready_ext_even
++ 	return 0;
++ 
++ err:
+++	kfree(svc_rdy_ext.mac_phy_caps);
++ 	ath11k_wmi_free_dbring_caps(ab);
++ 	return ret;
++ }
+diff --git a/package/kernel/mac80211/patches/ath11k/108-wifi-ath11k-fix-NULL-dereference-in-ahb-remove-when.patch b/package/kernel/mac80211/patches/ath11k/108-wifi-ath11k-fix-NULL-dereference-in-ahb-remove-when.patch
+new file mode 100644
+index 0000000000..4aef46d79d
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/108-wifi-ath11k-fix-NULL-dereference-in-ahb-remove-when.patch
+@@ -0,0 +1,59 @@
++From 1a7bcf5324c8e2de6512eca5b028b6b283181d3f Mon Sep 17 00:00:00 2001
++From: Miaoqing Pan <miaoqing.pan@oss.qualcomm.com>
++Date: Thu, 6 Aug 2026 18:13:30 +0800
++Subject: [PATCH] wifi: ath11k: fix NULL dereference in ahb remove when QMI
++ init incomplete
++
++On WCN6750, if QMI messages never arrive (for example when qrtr_smd
++is not ready), WLAN initialization stops before the device is fully
++registered. In this case ATH11K_FLAG_QMI_FAIL is not set because no
++QMI event handler is executed.
++
++When the driver is removed, ath11k_ahb_remove() still calls
++ath11k_core_deinit(), which eventually triggers
++ath11k_ce_cleanup_pipes() on uninitialized CE pipes and results in a
++NULL pointer dereference in ath11k_hal_srng_access_begin():
++
++  ath11k_hal_srng_access_begin+0x14/0x68 [ath11k]
++  ath11k_ce_cleanup_pipes+0x184/0x190 [ath11k]
++  ath11k_pcic_stop+0x24/0x38 [ath11k]
++  ath11k_core_deinit+0xfc/0x1c0 [ath11k]
++  ath11k_ahb_remove+0x38/0xa0 [ath11k_ahb]
++
++Fix this by invoking ath11k_ahb_remove_prepare() before the state
++check and skipping ath11k_core_deinit() if ATH11K_FLAG_REGISTERED
++is not set, core initialization did not complete and CE pipes may
++remain uninitialized, making ath11k_core_deinit() unsafe.
++
++Tested-on: WCN6750 hw1.0 AHB WLAN.MSL.2.0.c2-00204-QCAMSLSWPLZ-1
++
++Fixes: 00402f49d26f ("ath11k: Add support for WCN6750 device")
++Signed-off-by: Miaoqing Pan <miaoqing.pan@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260806101331.484063-3-miaoqing.pan@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/ahb.c | 5 +++--
++ 1 file changed, 3 insertions(+), 2 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/ahb.c
+++++ b/drivers/net/wireless/ath/ath11k/ahb.c
++@@ -1265,14 +1265,15 @@ static void ath11k_ahb_remove(struct pla
++ {
++ 	struct ath11k_base *ab = platform_get_drvdata(pdev);
++ 
++-	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
+++	ath11k_ahb_remove_prepare(ab);
+++
+++	if (!test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags)) {
++ 		ath11k_ahb_power_down(ab, false);
++ 		ath11k_debugfs_soc_destroy(ab);
++ 		ath11k_qmi_deinit_service(ab);
++ 		goto qmi_fail;
++ 	}
++ 
++-	ath11k_ahb_remove_prepare(ab);
++ 	ath11k_core_deinit(ab);
++ 
++ qmi_fail:
+diff --git a/package/kernel/mac80211/patches/ath11k/109-wifi-ath11k-unregister-PM-notifier-on-QMI-init-failu.patch b/package/kernel/mac80211/patches/ath11k/109-wifi-ath11k-unregister-PM-notifier-on-QMI-init-failu.patch
+new file mode 100644
+index 0000000000..56c2ae9b06
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/109-wifi-ath11k-unregister-PM-notifier-on-QMI-init-failu.patch
+@@ -0,0 +1,39 @@
++From 1d8e73163ef933624341075f576e2f36ef9133f7 Mon Sep 17 00:00:00 2001
++From: Miaoqing Pan <miaoqing.pan@oss.qualcomm.com>
++Date: Thu, 6 Aug 2026 18:13:31 +0800
++Subject: [PATCH] wifi: ath11k: unregister PM notifier on QMI init failure path
++
++ath11k_core_init() registers a PM notifier before the QMI server
++becomes available. If the QMI server never arrives, the device remove()
++path can take the early-exit path introduced for QMI initialization
++failures, skipping ath11k_core_deinit().
++
++As a result, the PM notifier remains registered after the ath11k base
++object has been freed. A subsequent suspend or resume event may invoke
++the stale notifier and trigger a use-after-free.
++
++Fix this by explicitly unregistering the PM notifier in the QMI failure
++cleanup path before releasing ath11k resources.
++
++Tested-on: WCN6750 hw1.0 AHB WLAN.MSL.2.0.c2-00204-QCAMSLSWPLZ-1
++
++Fixes: 32d93b51bc7e ("wifi: ath11k: choose default PM policy for hibernation")
++Signed-off-by: Miaoqing Pan <miaoqing.pan@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260806101331.484063-4-miaoqing.pan@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/ahb.c | 1 +
++ 1 file changed, 1 insertion(+)
++
++--- a/drivers/net/wireless/ath/ath11k/ahb.c
+++++ b/drivers/net/wireless/ath/ath11k/ahb.c
++@@ -1271,6 +1271,7 @@ static void ath11k_ahb_remove(struct pla
++ 		ath11k_ahb_power_down(ab, false);
++ 		ath11k_debugfs_soc_destroy(ab);
++ 		ath11k_qmi_deinit_service(ab);
+++		ath11k_core_pm_notifier_unregister(ab);
++ 		goto qmi_fail;
++ 	}
++ 
+diff --git a/package/kernel/mac80211/patches/ath11k/110-wifi-ath11k-Fix-possible-memory-leak-in-ath11k_dp_sr.patch b/package/kernel/mac80211/patches/ath11k/110-wifi-ath11k-Fix-possible-memory-leak-in-ath11k_dp_sr.patch
+new file mode 100644
+index 0000000000..ac636d01cd
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/110-wifi-ath11k-Fix-possible-memory-leak-in-ath11k_dp_sr.patch
+@@ -0,0 +1,43 @@
++From 6132d70d0890c03546f6970893fd71938efb2a2f Mon Sep 17 00:00:00 2001
++From: Abdun Nihaal <nihaal@cse.iitm.ac.in>
++Date: Sat, 1 Aug 2026 17:19:09 +0530
++Subject: [PATCH] wifi: ath11k: Fix possible memory leak in
++ ath11k_dp_srng_setup()
++
++In ath11k_dp_srng_setup(), the memory allocated for
++ring->vaddr_unaligned is not freed in the error paths that follow.
++Fix that by calling ath11k_dp_srng_cleanup() in those error paths.
++
++Compile tested only. Issue found using a prototype static analysis tool
++built on the LLVM compiler infrastructure.
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Cc: stable@vger.kernel.org
++Assisted-by: Claude:claude-sonnet-4-6
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Signed-off-by: Abdun Nihaal <nihaal@cse.iitm.ac.in>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260801114911.91483-1-nihaal@cse.iitm.ac.in
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/dp.c | 2 ++
++ 1 file changed, 2 insertions(+)
++
++--- a/drivers/net/wireless/ath/ath11k/dp.c
+++++ b/drivers/net/wireless/ath/ath11k/dp.c
++@@ -313,6 +313,7 @@ int ath11k_dp_srng_setup(struct ath11k_b
++ 	case HAL_RXDMA_DIR_BUF:
++ 		break;
++ 	default:
+++		ath11k_dp_srng_cleanup(ab, ring);
++ 		ath11k_warn(ab, "Not a valid ring type in dp :%d\n", type);
++ 		return -EINVAL;
++ 	}
++@@ -324,6 +325,7 @@ int ath11k_dp_srng_setup(struct ath11k_b
++ 
++ 	ret = ath11k_hal_srng_setup(ab, type, ring_num, mac_id, &params);
++ 	if (ret < 0) {
+++		ath11k_dp_srng_cleanup(ab, ring);
++ 		ath11k_warn(ab, "failed to setup srng: %d ring_id %d\n",
++ 			    ret, ring_num);
++ 		return ret;
+diff --git a/package/kernel/mac80211/patches/ath11k/111-wifi-ath11k-fix-locking-problem-in-ath11k_dp_rx_tid_.patch b/package/kernel/mac80211/patches/ath11k/111-wifi-ath11k-fix-locking-problem-in-ath11k_dp_rx_tid_.patch
+new file mode 100644
+index 0000000000..de3dadea33
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/111-wifi-ath11k-fix-locking-problem-in-ath11k_dp_rx_tid_.patch
+@@ -0,0 +1,91 @@
++From c7555d47b1d051e0406474349deccf74b491ae01 Mon Sep 17 00:00:00 2001
++From: Nicolas Escande <nico.escande@gmail.com>
++Date: Thu, 13 Aug 2026 14:15:28 +0200
++Subject: [PATCH] wifi: ath11k: fix locking problem in
++ ath11k_dp_rx_tid_del_func()
++
++In this function, we iterate over dp->reo_cmd_cache_flush_list using
++list_for_each_entry_safe(), under dp->reo_cmd_lock for concurrent access,
++and for each expired entries we :
++  - drop the lock
++  - call ath11k_dp_reo_cache_flush()
++  - kfree() the entry
++  - retake the lock to keep on iterating
++
++list_for_each_entry_safe() protects us from deleting the entry during
++iteration but doesn't protect for concurrent access. So another thread can
++take the lock and modify the list in between and crash like below.
++
++To fix the issue, move all entries that needs to be freed to a local list
++while under the lock and then iterate over the list to free the entries
++without holding the lock.
++
++	BUG: Unable to handle kernel paging request at virtual address 00000010ddbeef8c
++	Call trace:
++	ath11k_dp_rx_tid_del_func+0x164/0x3c8
++	ath11k_dp_process_reo_status+0x1d4/0x2fc
++	ath11k_dp_service_srng+0x334/0x338
++	ath11k_pcic_ext_grp_napi_poll+0x30/0xc0
++	__napi_poll+0x34/0x184
++	napi_threaded_poll+0xb4/0x1d8
++	kthread+0xdc/0xe0
++	ret_from_fork+0x10/0x20
++
++Tested-on: QCN9074 hw1.0 PCI WLAN.HK.2.9.0.1-01977-QCAHKSWPL_SILICONZ-1
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Suggested-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Signed-off-by: Nicolas Escande <nico.escande@gmail.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260813-ath11k-locking-v2-1-f4113a0bd0f4@gmail.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/dp_rx.c | 19 ++++++++++++-------
++ 1 file changed, 12 insertions(+), 7 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/dp_rx.c
+++++ b/drivers/net/wireless/ath/ath11k/dp_rx.c
++@@ -762,6 +762,9 @@ static void ath11k_dp_rx_tid_del_func(st
++ 	struct ath11k_base *ab = dp->ab;
++ 	struct dp_rx_tid *rx_tid = ctx;
++ 	struct dp_reo_cache_flush_elem *elem, *tmp;
+++	struct list_head flush_list;
+++
+++	INIT_LIST_HEAD(&flush_list);
++ 
++ 	if (status == HAL_REO_CMD_DRAIN) {
++ 		goto free_desc;
++@@ -783,23 +786,25 @@ static void ath11k_dp_rx_tid_del_func(st
++ 	list_add_tail(&elem->list, &dp->reo_cmd_cache_flush_list);
++ 	dp->reo_cmd_cache_flush_count++;
++ 
++-	/* Flush and invalidate aged REO desc from HW cache */
+++	/* identify aged REO desc that needs removal */
++ 	list_for_each_entry_safe(elem, tmp, &dp->reo_cmd_cache_flush_list,
++ 				 list) {
++ 		if (dp->reo_cmd_cache_flush_count > DP_REO_DESC_FREE_THRESHOLD ||
++ 		    time_after(jiffies, elem->ts +
++ 			       msecs_to_jiffies(DP_REO_DESC_FREE_TIMEOUT_MS))) {
++-			list_del(&elem->list);
+++			list_move_tail(&elem->list, &flush_list);
++ 			dp->reo_cmd_cache_flush_count--;
++-			spin_unlock_bh(&dp->reo_cmd_lock);
++-
++-			ath11k_dp_reo_cache_flush(ab, &elem->data);
++-			kfree(elem);
++-			spin_lock_bh(&dp->reo_cmd_lock);
++ 		}
++ 	}
++ 	spin_unlock_bh(&dp->reo_cmd_lock);
++ 
+++	/* remove aged REO desc from HW */
+++	list_for_each_entry_safe(elem, tmp, &flush_list, list) {
+++		ath11k_dp_reo_cache_flush(ab, &elem->data);
+++		list_del(&elem->list);
+++		kfree(elem);
+++	}
+++
++ 	return;
++ free_desc:
++ 	dma_free_noncoherent(ab->dev, rx_tid->unaligned_size,
+diff --git a/package/kernel/mac80211/patches/ath11k/112-wifi-ath11k-modify-null-check-logic-in-ath11k_ce_rx_.patch b/package/kernel/mac80211/patches/ath11k/112-wifi-ath11k-modify-null-check-logic-in-ath11k_ce_rx_.patch
+new file mode 100644
+index 0000000000..365b024dd3
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/112-wifi-ath11k-modify-null-check-logic-in-ath11k_ce_rx_.patch
+@@ -0,0 +1,39 @@
++From 52953d149ab4da0432d54b09f3c8add42b4d4a82 Mon Sep 17 00:00:00 2001
++From: Mikhail Lobanov <m.lobanov@rosalinux.ru>
++Date: Mon, 9 Sep 2024 11:08:20 -0400
++Subject: [PATCH] wifi: ath11k: modify null check logic in
++ ath11k_ce_rx_post_pipe()
++
++The previous logic in ath11k_ce_rx_post_pipe() incorrectly required both
++dest_ring and status_ring to be NULL in order to exit the function.
++This caused the function to continue even if only one of the pointers
++was NULL, potentially leading to null pointer dereferences in
++ath11k_ce_rx_buf_enqueue_pipe().
++
++Fix the condition by modifying the logic so that the function returns
++early if either dest_ring or status_ring is NULL.
++
++Found by Linux Verification Center (linuxtesting.org) with SVACE.
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Signed-off-by: Mikhail Lobanov <m.lobanov@rosalinux.ru>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Acked-by: Jeff Johnson <quic_jjohnson@quicinc.com>
++Link: https://patch.msgid.link/20240909150824.28195-1-m.lobanov@rosalinux.ru
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/ce.c | 2 +-
++ 1 file changed, 1 insertion(+), 1 deletion(-)
++
++--- a/drivers/net/wireless/ath/ath11k/ce.c
+++++ b/drivers/net/wireless/ath/ath11k/ce.c
++@@ -325,7 +325,7 @@ static int ath11k_ce_rx_post_pipe(struct
++ 	dma_addr_t paddr;
++ 	int ret = 0;
++ 
++-	if (!(pipe->dest_ring || pipe->status_ring))
+++	if (!pipe->dest_ring || !pipe->status_ring)
++ 		return 0;
++ 
++ 	spin_lock_bh(&ab->ce.ce_lock);
+diff --git a/package/kernel/mac80211/patches/ath11k/113-wifi-ath11k-cleanup-arsta-in-ath11k_mac_peer_cleanup.patch b/package/kernel/mac80211/patches/ath11k/113-wifi-ath11k-cleanup-arsta-in-ath11k_mac_peer_cleanup.patch
+new file mode 100644
+index 0000000000..6ef61ed76b
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/113-wifi-ath11k-cleanup-arsta-in-ath11k_mac_peer_cleanup.patch
+@@ -0,0 +1,109 @@
++From 820b8cff81c796ba20573e04722ab62500713f97 Mon Sep 17 00:00:00 2001
++From: Nicolas Escande <nico.escande@gmail.com>
++Date: Fri, 31 Jul 2026 16:58:30 +0200
++Subject: [PATCH] wifi: ath11k: cleanup arsta in ath11k_mac_peer_cleanup_all()
++
++When mac80211 removes a sta, it calls .sta_state() which in turn calls
++ath11k_mac_station_remove(). In that function we clean up both peers &
++arsta related resources.
++
++But when the firmware crashes, ath11k calls ieee80211_restart_hw(), which
++assumes that all driver related resources are cleaned up beforehand. This
++cleanup is supposedly done by ath11k_mac_peer_cleanup_all() but does not
++in fact free arsta->rx_stats / tx_stats.
++
++Extract the arsta cleanup from ath11k_mac_station_remove() into a
++new ath11k_mac_station_cleanup() and call it from both there and
++ath11k_mac_peer_cleanup_all().
++
++This should handle kmemleaks reports like:
++	unreferenced object 0xffffff801ae66400 (size 1024):
++	  comm "hostapd", pid 1306, jiffies 4295011565
++	  hex dump (first 32 bytes):
++	    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
++	    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
++	  backtrace (crc d61c08ec):
++	    kmemleak_alloc+0x3c/0x50
++	    __kmalloc_cache_noprof+0x2b0/0x3e0
++	    ath11k_mac_op_sta_state+0x1dc/0xb10
++	    drv_sta_state+0xac/0x6f8
++	    sta_info_insert_rcu+0x314/0x5e0
++	    sta_info_insert+0x14/0x38
++	    ieee80211_add_station+0x10c/0x1a0
++	    nl80211_new_station+0x3e8/0x680
++	    genl_family_rcv_msg_doit+0xc0/0x120
++	    genl_rcv_msg+0x1b4/0x258
++	    netlink_rcv_skb+0x4c/0x108
++	    genl_rcv+0x38/0x60
++	    netlink_unicast+0x190/0x278
++	    netlink_sendmsg+0x15c/0x370
++	    ____sys_sendmsg+0x120/0x290
++	    ___sys_sendmsg+0x70/0xa0
++
++Tested-on: QCN9074 hw1.0 PCI WLAN.HK.2.9.0.1-01977-QCAHKSWPL_SILICONZ-1
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Signed-off-by: Nicolas Escande <nico.escande@gmail.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260731145830.769811-1-nico.escande@gmail.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/mac.c | 25 ++++++++++++++++++-------
++ 1 file changed, 18 insertions(+), 7 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/mac.c
+++++ b/drivers/net/wireless/ath/ath11k/mac.c
++@@ -873,6 +873,22 @@ static int ath11k_mac_set_kickout(struct
++ 	return 0;
++ }
++ 
+++static void ath11k_mac_station_cleanup(struct ieee80211_sta *sta)
+++{
+++	struct ath11k_sta *arsta;
+++
+++	if (!sta)
+++		return;
+++
+++	arsta = ath11k_sta_to_arsta(sta);
+++
+++	kfree(arsta->tx_stats);
+++	arsta->tx_stats = NULL;
+++
+++	kfree(arsta->rx_stats);
+++	arsta->rx_stats = NULL;
+++}
+++
++ void ath11k_mac_peer_cleanup_all(struct ath11k *ar)
++ {
++ 	struct ath11k_peer *peer, *tmp;
++@@ -885,6 +901,7 @@ void ath11k_mac_peer_cleanup_all(struct
++ 	list_for_each_entry_safe(peer, tmp, &ab->peers, list) {
++ 		ath11k_peer_rx_tid_cleanup(ar, peer);
++ 		ath11k_peer_rhash_delete(ab, peer);
+++		ath11k_mac_station_cleanup(peer->sta);
++ 		list_del(&peer->list);
++ 		kfree(peer);
++ 	}
++@@ -9892,7 +9909,6 @@ static int ath11k_mac_station_remove(str
++ {
++ 	struct ath11k_base *ab = ar->ab;
++ 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
++-	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
++ 	int ret;
++ 
++ 	if (ab->hw_params.vdev_start_delay &&
++@@ -9916,12 +9932,7 @@ static int ath11k_mac_station_remove(str
++ 			   sta->addr, arvif->vdev_id);
++ 
++ 	ath11k_mac_dec_num_stations(arvif, sta);
++-
++-	kfree(arsta->tx_stats);
++-	arsta->tx_stats = NULL;
++-
++-	kfree(arsta->rx_stats);
++-	arsta->rx_stats = NULL;
+++	ath11k_mac_station_cleanup(sta);
++ 
++ 	return ret;
++ }
+diff --git a/package/kernel/mac80211/patches/ath11k/114-wifi-ath11k-reset-ar-num_stations-on-hardware-start.patch b/package/kernel/mac80211/patches/ath11k/114-wifi-ath11k-reset-ar-num_stations-on-hardware-start.patch
+new file mode 100644
+index 0000000000..b20f9213e5
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/114-wifi-ath11k-reset-ar-num_stations-on-hardware-start.patch
+@@ -0,0 +1,48 @@
++From 7e0ad05ebc72fffba2bdf2400400902d94ed7272 Mon Sep 17 00:00:00 2001
++From: Nicolas Escande <nico.escande@gmail.com>
++Date: Wed, 12 Aug 2026 16:58:05 +0200
++Subject: [PATCH] wifi: ath11k: reset ar->num_stations on hardware start
++
++When (multiple) hw restart occurs, we end up in a situation where we
++cannot accept new stations / mesh peers. This seems to be the
++'num_stations' in 'struct ath11k' that did not get reset properly in
++this case. In ath11k_mac_op_start(), it was indeed the only accounting var
++that did not get reset so let's clear it too.
++
++This avoids problems like those:
++
++	[1248828.088023] WARNING: CPU: 0 PID: 12281 at net/mac80211/util.c:1682 ieee80211_reconfig_stations+0x98/0xc0
++	[1248828.088115] Call trace:
++	[1248828.088116]  ieee80211_reconfig_stations+0x98/0xc0 (P)
++	[1248828.088119]  ieee80211_reconfig+0x774/0x1438
++	[1248828.088123]  ieee80211_restart_work+0x10c/0x178
++	[1248828.088127]  process_one_work+0x178/0x3c0
++	[1248828.088130]  worker_thread+0x280/0x440
++	[1248828.088133]  kthread+0xe0/0xf8
++	[1248828.088137]  ret_from_fork+0x10/0x20
++	[1248828.088141] ---[ end trace 0000000000000000 ]---
++	[1248836.686604] ath11k_pci 0000:04:00.0: refusing to associate station: too many connected already (128)
++	[1248836.686609] ath11k_pci 0000:04:00.0: Failed to add station: xx:xx:xx:xx:xx:xx for VDEV: 1
++
++Tested-on: QCN9074 hw1.0 PCI WLAN.HK.2.9.0.1-01977-QCAHKSWPL_SILICONZ-1
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Signed-off-by: Nicolas Escande <nico.escande@gmail.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260812-num-station-v3-1-871d20e043f6@gmail.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/mac.c | 1 +
++ 1 file changed, 1 insertion(+)
++
++--- a/drivers/net/wireless/ath/ath11k/mac.c
+++++ b/drivers/net/wireless/ath/ath11k/mac.c
++@@ -6716,6 +6716,7 @@ static int ath11k_mac_op_start(struct ie
++ 	ar->num_started_vdevs = 0;
++ 	ar->num_created_vdevs = 0;
++ 	ar->num_peers = 0;
+++	ar->num_stations = 0;
++ 	ar->allocated_vdev_map = 0;
++ 
++ 	/* Configure monitor status ring with default rx_filter to get rx status
+diff --git a/package/kernel/mac80211/patches/ath11k/115-wifi-ath11k-fix-reg_info_store-leak-in-ath11k_servic.patch b/package/kernel/mac80211/patches/ath11k/115-wifi-ath11k-fix-reg_info_store-leak-in-ath11k_servic.patch
+new file mode 100644
+index 0000000000..e46eeb94be
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/115-wifi-ath11k-fix-reg_info_store-leak-in-ath11k_servic.patch
+@@ -0,0 +1,48 @@
++From 64828f091c7de5c1324427b140fb545f93ef073f Mon Sep 17 00:00:00 2001
++From: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++Date: Mon, 17 Aug 2026 16:46:34 -0700
++Subject: [PATCH] wifi: ath11k: fix reg_info_store leak in
++ ath11k_service_ready_ext_event()
++
++Currently, while processing the WMI Service Ready Ext event, the iterator
++in ath11k_service_ready_ext_event() can dispatch the HAL Regulatory
++Capabilities handler ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse() which can
++allocate ab->reg_info_store.
++
++If a subsequent failure occurs during iteration, the ab->reg_info_store
++allocation is leaked.
++
++Directly free and clear the pointer on the error path.
++
++Note that the normal cleanup function ath11k_reg_free() cannot be used
++since other regulatory-related fields are not yet populated at this point.
++
++Compile tested only.
++
++Fixes: 7004bdceef60 ("wifi: ath11k: store cur_regulatory_info for each radio")
++Assisted-by: Claude:claude-sonnet-4-6
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260817-reg_info_store-leak-v1-1-77025a99b074@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/wmi.c | 9 +++++++++
++ 1 file changed, 9 insertions(+)
++
++--- a/drivers/net/wireless/ath/ath11k/wmi.c
+++++ b/drivers/net/wireless/ath/ath11k/wmi.c
++@@ -5136,6 +5136,15 @@ static int ath11k_service_ready_ext_even
++ 
++ err:
++ 	kfree(svc_rdy_ext.mac_phy_caps);
+++
+++	/*
+++	 * During TLV iteration the WMI_TAG_SOC_HAL_REG_CAPABILITIES
+++	 * handler may have allocated ab->reg_info_store, so free it
+++	 * on error to avoid a memory leak
+++	 */
+++	kfree(ab->reg_info_store);
+++	ab->reg_info_store = NULL;
+++
++ 	ath11k_wmi_free_dbring_caps(ab);
++ 	return ret;
++ }
+diff --git a/package/kernel/mac80211/patches/ath11k/116-wifi-ath11k-read-wiphy-regd-under-RCU.patch b/package/kernel/mac80211/patches/ath11k/116-wifi-ath11k-read-wiphy-regd-under-RCU.patch
+new file mode 100644
+index 0000000000..735b1ec4f5
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/116-wifi-ath11k-read-wiphy-regd-under-RCU.patch
+@@ -0,0 +1,30 @@
++From 170404d5e976ee94a6c683a87af1a9fd56a4b668 Mon Sep 17 00:00:00 2001
++From: Johannes Berg <johannes.berg@intel.com>
++Date: Tue, 6 Oct 2026 12:04:15 +0200
++Subject: [PATCH] wifi: ath11k: read wiphy regd under RCU
++
++Part of the RTNL removal here means the notifier will no
++longer hold the RTNL, so rcu_dereference_rtnl() can't be
++used any more. Use an RCU critical section which works
++either way, we don't have access to the cfg80211_mutex
++in the drivers.
++
++Link: https://patch.msgid.link/20261006120655.2959e1a05eb0.I92dbc5e611309de4ea3bc11fefea609a5f2d0af4@changeid
++Signed-off-by: Johannes Berg <johannes.berg@intel.com>
++---
++ drivers/net/wireless/ath/ath11k/reg.c | 4 +++-
++ 1 file changed, 3 insertions(+), 1 deletion(-)
++
++--- a/drivers/net/wireless/ath/ath11k/reg.c
+++++ b/drivers/net/wireless/ath/ath11k/reg.c
++@@ -33,7 +33,9 @@ static bool ath11k_regdom_changes(struct
++ {
++ 	const struct ieee80211_regdomain *regd;
++ 
++-	regd = rcu_dereference_rtnl(ar->hw->wiphy->regd);
+++	guard(rcu)();
+++
+++	regd = get_wiphy_regdom(ar->hw->wiphy);
++ 	/* This can happen during wiphy registration where the previous
++ 	 * user request is received before we update the regd received
++ 	 * from firmware.
+diff --git a/package/kernel/mac80211/patches/ath11k/117-wifi-ath11k-avoid-IDR-mutation-during-pending-mgmt-T.patch b/package/kernel/mac80211/patches/ath11k/117-wifi-ath11k-avoid-IDR-mutation-during-pending-mgmt-T.patch
+new file mode 100644
+index 0000000000..97de47112e
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/117-wifi-ath11k-avoid-IDR-mutation-during-pending-mgmt-T.patch
+@@ -0,0 +1,79 @@
++From 3e7f5d362b2b3a21b3adb4b860aad14b69a896ad Mon Sep 17 00:00:00 2001
++From: Jiale Yao <yaojiale02@163.com>
++Date: Sat, 3 Oct 2026 17:20:59 +0800
++Subject: [PATCH] wifi: ath11k: avoid IDR mutation during pending mgmt TX
++ cleanup
++
++The pending management TX cleanup walks txmgmt_idr with idr_for_each(),
++and its callback removes the current entry. This can invalidate the
++radix-tree iterator retained by idr_for_each().
++
++Use idr_for_each_entry() so every iteration starts with a fresh lookup.
++Continue to remove each entry under txmgmt_idr_lock before freeing its skb,
++preventing concurrent TX completion from finding a stale skb pointer.
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Signed-off-by: Jiale Yao <yaojiale02@163.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20261003092104.520135-3-yaojiale02@163.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/core.c |  3 +--
++ drivers/net/wireless/ath/ath11k/mac.c  | 12 ++++++------
++ drivers/net/wireless/ath/ath11k/mac.h  |  2 +-
++ 3 files changed, 8 insertions(+), 9 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/core.c
+++++ b/drivers/net/wireless/ath/ath11k/core.c
++@@ -2447,8 +2447,7 @@ void ath11k_core_pre_reconfigure_recover
++ 		complete(&ar->thermal.wmi_sync);
++ 
++ 		wake_up(&ar->dp.tx_empty_waitq);
++-		idr_for_each(&ar->txmgmt_idr,
++-			     ath11k_mac_tx_mgmt_pending_free, ar);
+++		ath11k_mac_tx_mgmt_pending_free(ar);
++ 		idr_destroy(&ar->txmgmt_idr);
++ 		wake_up(&ar->txmgmt_empty_waitq);
++ 
++--- a/drivers/net/wireless/ath/ath11k/mac.c
+++++ b/drivers/net/wireless/ath/ath11k/mac.c
++@@ -6167,13 +6167,13 @@ static void ath11k_mac_tx_mgmt_free(stru
++ 	ath11k_mgmt_over_wmi_tx_drop(ar, msdu);
++ }
++ 
++-int ath11k_mac_tx_mgmt_pending_free(int buf_id, void *skb, void *ctx)
+++void ath11k_mac_tx_mgmt_pending_free(struct ath11k *ar)
++ {
++-	struct ath11k *ar = ctx;
++-
++-	ath11k_mac_tx_mgmt_free(ar, buf_id);
+++	struct sk_buff *msdu;
+++	int buf_id;
++ 
++-	return 0;
+++	idr_for_each_entry(&ar->txmgmt_idr, msdu, buf_id)
+++		ath11k_mac_tx_mgmt_free(ar, buf_id);
++ }
++ 
++ static int ath11k_mac_vif_txmgmt_idr_remove(int buf_id, void *skb, void *ctx)
++@@ -10418,7 +10418,7 @@ static void __ath11k_mac_unregister(stru
++ 
++ 	ieee80211_unregister_hw(ar->hw);
++ 
++-	idr_for_each(&ar->txmgmt_idr, ath11k_mac_tx_mgmt_pending_free, ar);
+++	ath11k_mac_tx_mgmt_pending_free(ar);
++ 	idr_destroy(&ar->txmgmt_idr);
++ 
++ 	kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
++--- a/drivers/net/wireless/ath/ath11k/mac.h
+++++ b/drivers/net/wireless/ath/ath11k/mac.h
++@@ -162,7 +162,7 @@ struct ath11k *ath11k_mac_get_ar_by_pdev
++ 
++ void ath11k_mac_drain_tx(struct ath11k *ar);
++ void ath11k_mac_peer_cleanup_all(struct ath11k *ar);
++-int ath11k_mac_tx_mgmt_pending_free(int buf_id, void *skb, void *ctx);
+++void ath11k_mac_tx_mgmt_pending_free(struct ath11k *ar);
++ u8 ath11k_mac_bw_to_mac80211_bw(u8 bw);
++ enum nl80211_he_gi ath11k_mac_he_gi_to_nl80211_he_gi(u8 sgi);
++ enum nl80211_he_ru_alloc ath11k_mac_phy_he_ru_to_nl80211_he_ru_alloc(u16 ru_phy);
+diff --git a/package/kernel/mac80211/patches/ath11k/118-wifi-ath11k-avoid-IDR-mutation-during-vif-mgmt-TX-cl.patch b/package/kernel/mac80211/patches/ath11k/118-wifi-ath11k-avoid-IDR-mutation-during-vif-mgmt-TX-cl.patch
+new file mode 100644
+index 0000000000..e568a4b7fe
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/118-wifi-ath11k-avoid-IDR-mutation-during-vif-mgmt-TX-cl.patch
+@@ -0,0 +1,64 @@
++From dc29226dada34a6d19af77b4b51e90f8a3a8de34 Mon Sep 17 00:00:00 2001
++From: Jiale Yao <yaojiale02@163.com>
++Date: Sat, 3 Oct 2026 17:21:00 +0800
++Subject: [PATCH] wifi: ath11k: avoid IDR mutation during vif mgmt TX cleanup
++
++ath11k_mac_op_remove_interface() walks txmgmt_idr with idr_for_each(),
++and its callback removes each entry belonging to the interface. Removing
++the current entry can invalidate the radix-tree iterator retained by
++idr_for_each().
++
++Move the walk into a helper that uses idr_for_each_entry(). It performs a
++fresh lookup for every iteration, so each matching entry can be removed
++through the locked removal helper without retaining iterator state across
++the removal.
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Signed-off-by: Jiale Yao <yaojiale02@163.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20261003092104.520135-4-yaojiale02@163.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/mac.c | 21 +++++++++++----------
++ 1 file changed, 11 insertions(+), 10 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/mac.c
+++++ b/drivers/net/wireless/ath/ath11k/mac.c
++@@ -6176,16 +6176,18 @@ void ath11k_mac_tx_mgmt_pending_free(str
++ 		ath11k_mac_tx_mgmt_free(ar, buf_id);
++ }
++ 
++-static int ath11k_mac_vif_txmgmt_idr_remove(int buf_id, void *skb, void *ctx)
+++static void ath11k_mac_vif_txmgmt_cleanup(struct ath11k *ar,
+++					  struct ieee80211_vif *vif)
++ {
++-	struct ieee80211_vif *vif = ctx;
++-	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB((struct sk_buff *)skb);
++-	struct ath11k *ar = skb_cb->ar;
++-
++-	if (skb_cb->vif == vif)
++-		ath11k_mac_tx_mgmt_free(ar, buf_id);
+++	struct ath11k_skb_cb *skb_cb;
+++	struct sk_buff *skb;
+++	int buf_id;
++ 
++-	return 0;
+++	idr_for_each_entry(&ar->txmgmt_idr, skb, buf_id) {
+++		skb_cb = ATH11K_SKB_CB(skb);
+++		if (skb_cb->vif == vif)
+++			ath11k_mac_tx_mgmt_free(ar, buf_id);
+++	}
++ }
++ 
++ static int ath11k_mac_mgmt_tx_wmi(struct ath11k *ar, struct ath11k_vif *arvif,
++@@ -7417,8 +7419,7 @@ err_vdev_del:
++ 
++ 	ath11k_peer_cleanup(ar, arvif->vdev_id);
++ 
++-	idr_for_each(&ar->txmgmt_idr,
++-		     ath11k_mac_vif_txmgmt_idr_remove, vif);
+++	ath11k_mac_vif_txmgmt_cleanup(ar, vif);
++ 
++ 	for (i = 0; i < ab->hw_params.hal_params->num_tx_rings; i++) {
++ 		spin_lock_bh(&ab->dp.tx_ring[i].tx_idr_lock);
+diff --git a/package/kernel/mac80211/patches/ath11k/954-wifi-ath11k-fix-unbalanced-IRQ-enable-disable-during-suspend-resume.patch b/package/kernel/mac80211/patches/ath11k/954-wifi-ath11k-fix-unbalanced-IRQ-enable-disable-during-suspend-resume.patch
+new file mode 100644
+index 0000000000..758239dac7
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/954-wifi-ath11k-fix-unbalanced-IRQ-enable-disable-during-suspend-resume.patch
+@@ -0,0 +1,87 @@
++From e56c9d429ba004d5416b03091fd7656187cdcaf1 Mon Sep 17 00:00:00 2001
++From: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Date: Mon, 28 Sep 2026 18:45:25 +0800
++Subject: [PATCH] wifi: ath11k: fix unbalanced IRQ enable/disable during
++ suspend/resume
++
++Commit f7a74e131d3f ("wifi: ath11k: disable interrupts during firmware
++crash recovery") added an unconditional ath11k_hif_irq_disable()/
++ath11k_hif_ce_irq_disable() pair inside
++ath11k_core_reconfigure_on_crash(), guarded by "if (!ab->is_reset)", to
++stop the DP NAPI from touching rings that have just been torn down. That
++fixes AHB device recovery, but breaks PCI device suspend/resume. During
++suspend, IRQs are disabled once in ath11k_core_suspend_late(). Then during
++resume, ath11k_core_reconfigure_on_crash() sees ab->is_reset clear and
++disables them a second time. Those IRQs are enabled only once during
++the following reinitialization, leaving the IRQ lines masked. As a result,
++HTC control responses never arrive, and resume fails:
++
++  failed to receive control response completion, polling..
++  failed to connect to HTT: -110
++  failed to reconfigure driver on crash recovery
++  failed to resume core: -110
++
++Fix this by disabling the IRQs unconditionally at the top of
++ath11k_core_reconfigure_on_crash(), and instead drop the disable
++calls from the two places that already disable IRQs before this
++function can run: ath11k_core_suspend_late() and ath11k_core_reset().
++This keeps a single disable per recovery/suspend cycle regardless of
++which path (recovery or suspend) triggers it, so the refcount on
++PCI parts stays balanced while AHB parts keep getting the disable
++that the original commit needed.
++
++Fixes: f7a74e131d3f ("wifi: ath11k: disable interrupts during firmware crash recovery")
++Reported-by: Marek Szyprowski <m.szyprowski@samsung.com>
++Closes: https://lore.kernel.org/linux-wireless/a068a857-a549-4cc2-ae0f-3ef119d3a859@samsung.com/
++Tested-by: Marek Szyprowski <m.szyprowski@samsung.com>
++Tested-by: Julius Bairaktaris <julius@bairaktaris.de>
++Signed-off-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260928-ath11k-unbalanced-irq-enable-disable-v1-1-75166f534763@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/core.c | 18 ++----------------
++ 1 file changed, 2 insertions(+), 16 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/core.c
+++++ b/drivers/net/wireless/ath/ath11k/core.c
++@@ -1417,9 +1417,6 @@ int ath11k_core_suspend_late(struct ath1
++ 	if (ab->actual_pm_policy == ATH11K_PM_WOW)
++ 		return 0;
++ 
++-	ath11k_hif_irq_disable(ab);
++-	ath11k_hif_ce_irq_disable(ab);
++-
++ 	ath11k_hif_power_down(ab, true);
++ 
++ 	return 0;
++@@ -2475,17 +2472,9 @@ static int ath11k_core_reconfigure_on_cr
++ 	int ret;
++ 
++ 	mutex_lock(&ab->core_lock);
+++	ath11k_hif_irq_disable(ab);
+++	ath11k_hif_ce_irq_disable(ab);
++ 	ath11k_thermal_unregister(ab);
++-
++-	/*
++-	 * ath11k_core_reset() already disabled the interrupts on the reset
++-	 * path; only the firmware crash path reaches here with them live.
++-	 */
++-	if (!ab->is_reset) {
++-		ath11k_hif_irq_disable(ab);
++-		ath11k_hif_ce_irq_disable(ab);
++-	}
++-
++ 	ath11k_dp_pdev_free(ab);
++ 	ath11k_cfr_deinit(ab);
++ 	ath11k_spectral_deinit(ab);
++@@ -2746,9 +2735,6 @@ static void ath11k_core_reset(struct wor
++ 	time_left = wait_for_completion_timeout(&ab->recovery_start,
++ 						ATH11K_RECOVER_START_TIMEOUT_HZ);
++ 
++-	ath11k_hif_irq_disable(ab);
++-	ath11k_hif_ce_irq_disable(ab);
++-
++ 	ath11k_hif_power_down(ab, false);
++ 	ath11k_hif_power_up(ab);
++ 
+diff --git a/package/kernel/mac80211/patches/ath11k/955-wifi-ath11k-reject-short-management-RX-frames.patch b/package/kernel/mac80211/patches/ath11k/955-wifi-ath11k-reject-short-management-RX-frames.patch
+new file mode 100644
+index 0000000000..497eebaeee
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/955-wifi-ath11k-reject-short-management-RX-frames.patch
+@@ -0,0 +1,38 @@
++From 9e15ccad0877c4a748bf2b817811a23f2d71bd92 Mon Sep 17 00:00:00 2001
++From: Jiale Yao <yaojiale02@163.com>
++Date: Sat, 26 Sep 2026 19:40:37 +0800
++Subject: [PATCH] wifi: ath11k: Reject short management RX frames
++
++ath11k_pull_mgmt_rx_params_tlv() verifies that the firmware-reported frame
++length fits in the WMI event, but does not ensure that it can hold an IEEE
++802.11 management header. It then sets skb->len to that reported length.
++
++ath11k_mgmt_rx_event() subsequently reads frame_control and other header
++fields without another length check. A firmware event with a short buf_len
++can therefore cause an out-of-bounds read.
++
++Reject frames shorter than a three-address IEEE 802.11 header before
++adjusting the skb to expose the frame.
++
++Fixes: d5c65159f289 ("ath11k: driver for Qualcomm IEEE 802.11ax devices")
++Signed-off-by: Jiale Yao <yaojiale02@163.com>
++Reviewed-by: Vasanthakumar Thiagarajan <vasanthakumar.thiagarajan@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260926114037.3231795-1-yaojiale02@163.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/wmi.c | 3 ++-
++ 1 file changed, 2 insertions(+), 1 deletion(-)
++
++--- a/drivers/net/wireless/ath/ath11k/wmi.c
+++++ b/drivers/net/wireless/ath/ath11k/wmi.c
++@@ -6004,7 +6004,8 @@ static int ath11k_pull_mgmt_rx_params_tl
++ 	hdr->tsf_delta =  ev->tsf_delta;
++ 	memcpy(hdr->rssi_ctl, ev->rssi_ctl, sizeof(hdr->rssi_ctl));
++ 
++-	if (skb->len < (frame - skb->data) + hdr->buf_len) {
+++	if (hdr->buf_len < sizeof(struct ieee80211_hdr_3addr) ||
+++	    skb->len < (frame - skb->data) + hdr->buf_len) {
++ 		ath11k_warn(ab, "invalid length in mgmt rx hdr ev");
++ 		return -EPROTO;
++ 	}
+diff --git a/package/kernel/mac80211/patches/ath11k/956-wifi-ath11k-fix-resource-leak-on-error-in-ext-IRQ-setup.patch b/package/kernel/mac80211/patches/ath11k/956-wifi-ath11k-fix-resource-leak-on-error-in-ext-IRQ-setup.patch
+new file mode 100644
+index 0000000000..fb5a83948f
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/956-wifi-ath11k-fix-resource-leak-on-error-in-ext-IRQ-setup.patch
+@@ -0,0 +1,199 @@
++From 8ab38bbac02298e3fb03008ed4a0227485c0fd62 Mon Sep 17 00:00:00 2001
++From: ZhaoJinming <zhaojinming@uniontech.com>
++Date: Wed, 29 Jul 2026 10:00:05 +0800
++Subject: [PATCH] wifi: ath11k: fix resource leak on error in ext IRQ setup
++
++In ath11k_ahb_config_irq(), when a CE request_irq() fails, the function
++returns the error immediately without freeing the CE IRQs that were
++successfully registered in previous loop iterations. The probe error
++path does not call ath11k_ahb_free_irq() either, so the previously
++registered CE IRQ handlers remain attached to the interrupt lines and
++are never released.
++
++In ath11k_ahb_config_ext_irq(), when an external request_irq() fails,
++the error is only logged and the loop continues. The function then
++returns 0 indicating success, leaving the device in a partially
++configured state where some external IRQs are not registered. This
++causes enable_irq()/disable_irq()/free_irq() to be called on
++unregistered IRQs during runtime and remove/shutdown, triggering
++WARN_ON(!desc->action), and missing interrupt handlers lead to data
++loss.
++
++Additionally, if alloc_netdev_dummy() fails for a later IRQ group, the
++function returns -ENOMEM without freeing the ext IRQs and napi_ndev
++that were successfully set up for earlier groups.
++
++Fix all three issues: propagate the error up to the caller and unwind
++all successfully registered IRQs and allocated resources on failure.
++Also move ab->irq_num[irq_idx] assignment after request_irq() succeeds
++in the ext IRQ path to match the CE IRQ path and avoid storing a stale
++IRQ number on failure.
++
++Signed-off-by: ZhaoJinming <zhaojinming@uniontech.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260729020005.219253-1-zhaojinming@uniontech.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/ahb.c | 79 +++++++++++++++++++--------
++ 1 file changed, 55 insertions(+), 24 deletions(-)
++
++--- a/drivers/net/wireless/ath/ath11k/ahb.c
+++++ b/drivers/net/wireless/ath/ath11k/ahb.c
++@@ -449,36 +449,44 @@ static void ath11k_ahb_init_qmi_ce_confi
++ 	ab->qmi.service_ins_id += ab->userpd_id;
++ }
++ 
++-static void ath11k_ahb_free_ext_irq(struct ath11k_base *ab)
+++static void ath11k_ahb_free_ext_irq_grp(struct ath11k_base *ab,
+++					struct ath11k_ext_irq_grp *irq_grp)
++ {
++-	int i, j;
+++	int j;
++ 
++-	for (i = 0; i < ATH11K_EXT_IRQ_GRP_NUM_MAX; i++) {
++-		struct ath11k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
+++	for (j = 0; j < irq_grp->num_irq; j++)
+++		free_irq(ab->irq_num[irq_grp->irqs[j]], irq_grp);
++ 
++-		for (j = 0; j < irq_grp->num_irq; j++)
++-			free_irq(ab->irq_num[irq_grp->irqs[j]], irq_grp);
++-
++-		netif_napi_del(&irq_grp->napi);
++-		free_netdev(irq_grp->napi_ndev);
++-	}
+++	netif_napi_del(&irq_grp->napi);
+++	free_netdev(irq_grp->napi_ndev);
++ }
++ 
++-static void ath11k_ahb_free_irq(struct ath11k_base *ab)
+++static void ath11k_ahb_free_ext_irq(struct ath11k_base *ab)
++ {
++-	int irq_idx;
++ 	int i;
++ 
++-	if (ab->hw_params.hybrid_bus_type)
++-		return ath11k_pcic_free_irq(ab);
+++	for (i = 0; i < ATH11K_EXT_IRQ_GRP_NUM_MAX; i++)
+++		ath11k_ahb_free_ext_irq_grp(ab, &ab->ext_irq_grp[i]);
+++}
++ 
++-	for (i = 0; i < ab->hw_params.ce_count; i++) {
+++static void ath11k_ahb_free_ce_irqs(struct ath11k_base *ab, int max_idx)
+++{
+++	int irq_idx, i;
+++
+++	for (i = 0; i < max_idx; i++) {
++ 		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
++ 			continue;
++ 		irq_idx = ATH11K_IRQ_CE0_OFFSET + i;
++ 		free_irq(ab->irq_num[irq_idx], &ab->ce.ce_pipe[i]);
++ 	}
+++}
+++
+++static void ath11k_ahb_free_irq(struct ath11k_base *ab)
+++{
+++	if (ab->hw_params.hybrid_bus_type)
+++		return ath11k_pcic_free_irq(ab);
++ 
+++	ath11k_ahb_free_ce_irqs(ab, ab->hw_params.ce_count);
++ 	ath11k_ahb_free_ext_irq(ab);
++ }
++ 
++@@ -542,20 +550,25 @@ static irqreturn_t ath11k_ahb_ext_interr
++ static int ath11k_ahb_config_ext_irq(struct ath11k_base *ab)
++ {
++ 	struct ath11k_hw_params *hw = &ab->hw_params;
+++	struct ath11k_ext_irq_grp *irq_grp;
++ 	int i, j;
++ 	int irq;
++ 	int ret;
++ 
++ 	for (i = 0; i < ATH11K_EXT_IRQ_GRP_NUM_MAX; i++) {
++-		struct ath11k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
++ 		u32 num_irq = 0;
++ 
+++		irq_grp = &ab->ext_irq_grp[i];
+++
++ 		irq_grp->ab = ab;
++ 		irq_grp->grp_id = i;
++ 
++ 		irq_grp->napi_ndev = alloc_netdev_dummy(0);
++-		if (!irq_grp->napi_ndev)
++-			return -ENOMEM;
+++		if (!irq_grp->napi_ndev) {
+++			ret = -ENOMEM;
+++			irq_grp->num_irq = 0;
+++			goto err_request_irq;
+++		}
++ 
++ 		netif_napi_add(irq_grp->napi_ndev, &irq_grp->napi,
++ 			       ath11k_ahb_ext_grp_napi_poll);
++@@ -603,14 +616,11 @@ static int ath11k_ahb_config_ext_irq(str
++ 				}
++ 			}
++ 		}
++-		irq_grp->num_irq = num_irq;
++-
++-		for (j = 0; j < irq_grp->num_irq; j++) {
+++		for (j = 0; j < num_irq; j++) {
++ 			int irq_idx = irq_grp->irqs[j];
++ 
++ 			irq = platform_get_irq_byname(ab->pdev,
++ 						      irq_name[irq_idx]);
++-			ab->irq_num[irq_idx] = irq;
++ 			irq_set_status_flags(irq, IRQ_NOAUTOEN | IRQ_DISABLE_UNLAZY);
++ 			ret = request_irq(irq, ath11k_ahb_ext_interrupt_handler,
++ 					  IRQF_TRIGGER_RISING,
++@@ -618,11 +628,24 @@ static int ath11k_ahb_config_ext_irq(str
++ 			if (ret) {
++ 				ath11k_err(ab, "failed request_irq for %d\n",
++ 					   irq);
+++				irq_grp->num_irq = j;
+++				ath11k_ahb_free_ext_irq_grp(ab, irq_grp);
+++				goto err_request_irq;
++ 			}
+++			ab->irq_num[irq_idx] = irq;
++ 		}
+++
+++		irq_grp->num_irq = num_irq;
++ 	}
++ 
++ 	return 0;
+++
+++err_request_irq:
+++	for (i--; i >= 0; i--) {
+++		irq_grp = &ab->ext_irq_grp[i];
+++		ath11k_ahb_free_ext_irq_grp(ab, irq_grp);
+++	}
+++	return ret;
++ }
++ 
++ static int ath11k_ahb_config_irq(struct ath11k_base *ab)
++@@ -647,16 +670,24 @@ static int ath11k_ahb_config_irq(struct
++ 		ret = request_irq(irq, ath11k_ahb_ce_interrupt_handler,
++ 				  IRQF_TRIGGER_RISING, irq_name[irq_idx],
++ 				  ce_pipe);
++-		if (ret)
+++		if (ret) {
+++			ath11k_err(ab, "failed request_irq for %d\n", irq);
+++			ath11k_ahb_free_ce_irqs(ab, i);
++ 			return ret;
+++		}
++ 
++ 		ab->irq_num[irq_idx] = irq;
++ 	}
++ 
++ 	/* Configure external interrupts */
++ 	ret = ath11k_ahb_config_ext_irq(ab);
+++	if (ret) {
+++		ath11k_err(ab, "failed to configure ext irq: %d\n", ret);
+++		ath11k_ahb_free_ce_irqs(ab, ab->hw_params.ce_count);
+++		return ret;
+++	}
++ 
++-	return ret;
+++	return 0;
++ }
++ 
++ static int ath11k_ahb_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
+diff --git a/package/kernel/mac80211/patches/subsys/484-wifi-mac80211-don-t-estimate-airtime-for-unsupported-rate-widths.patch b/package/kernel/mac80211/patches/subsys/484-wifi-mac80211-don-t-estimate-airtime-for-unsupported-rate-widths.patch
+new file mode 100644
+index 0000000000..2f41ad0c32
+--- /dev/null
++++ b/package/kernel/mac80211/patches/subsys/484-wifi-mac80211-don-t-estimate-airtime-for-unsupported-rate-widths.patch
+@@ -0,0 +1,83 @@
++From f394cbd0980c95c9173f8551a5eb4c4f28d598eb Mon Sep 17 00:00:00 2001
++From: François Roux <franzelfranzel@gmail.com>
++Date: Tue, 6 Oct 2026 10:37:51 +0200
++Subject: wifi: mac80211: don't estimate airtime for unsupported rate widths
++MIME-Version: 1.0
++Content-Type: text/plain; charset=UTF-8
++Content-Transfer-Encoding: 8bit
++
++ieee80211_fill_rate_info() copies the driver's rate_info bandwidth into
++the rx_status as is, but ieee80211_get_rate_duration() only handles
++20/40/80/160/320 MHz. When a driver reports another width, e.g. an
++HE/EHT RU allocation, it hits WARN_ON_ONCE() and returns 0 without
++setting *overhead. ieee80211_rate_expected_tx_airtime() then goes on
++using the uninitialized overhead, as Dan's static checker report
++points out.
++
++Seen on a Microsoft Surface Pro 11 (WCN7850, ath12k) while
++NetworkManager dumps station info:
++
++  WARNING: net/mac80211/airtime.c:532 at ieee80211_get_rate_duration.isra.0+0xc0/0x180 [mac80211]
++   ieee80211_get_rate_duration.isra.0+0xc0/0x180 [mac80211]
++   sta_estimate_expected_throughput.isra.0+0x38/0x64 [mac80211]
++   sta_set_sinfo+0x7fc/0x8e4 [mac80211]
++   ieee80211_dump_station+0x4c/0x84 [mac80211]
++   nl80211_dump_station+0x594/0x7e8 [cfg80211]
++
++Only accept widths that ieee80211_get_rate_duration() handles in
++ieee80211_fill_rate_info(). Other widths then give no estimate instead
++of a warning. Also return 0 from ieee80211_rate_expected_tx_airtime()
++when no duration could be computed, as ieee80211_calc_rx_airtime()
++already does.
++
++Tested on the Surface Pro 11 with next-20260929: Wi-Fi works and
++"expected throughput" is still reported (about 1049 Mbit/s for a
++1297 Mbit/s HE 160 MHz tx rate). The warning itself is rare (twice in
++several days of use), so this does not prove it is gone, only that the
++change does not break the normal path.
++
++Fixes: 094dc1619cb0 ("wifi: mac80211: factor out part of ieee80211_calc_expected_tx_airtime")
++Reported-by: Dan Carpenter <error27@gmail.com>
++Closes: https://lore.kernel.org/all/aneGlCMVnqRhlf6p@stanley.mountain/
++Assisted-by: LLM
++Signed-off-by: François Roux <franzelfranzel@gmail.com>
++Link: https://patch.msgid.link/20261006083751.4015-1-franzelfranzel@gmail.com
++Signed-off-by: Johannes Berg <johannes.berg@intel.com>
++---
++ net/mac80211/airtime.c | 18 ++++++++++++++++++
++ 1 file changed, 18 insertions(+)
++
++--- a/net/mac80211/airtime.c
+++++ b/net/mac80211/airtime.c
++@@ -632,6 +632,22 @@ static bool ieee80211_fill_rate_info(str
++ 	if (!ri || !sband)
++ 	    return false;
++ 
+++	/*
+++	 * ieee80211_get_rate_duration() only handles these widths. Drivers
+++	 * may also report e.g. HE/EHT RU allocations, which cannot be used
+++	 * to estimate airtime here.
+++	 */
+++	switch (ri->bw) {
+++	case RATE_INFO_BW_20:
+++	case RATE_INFO_BW_40:
+++	case RATE_INFO_BW_80:
+++	case RATE_INFO_BW_160:
+++	case RATE_INFO_BW_320:
+++		break;
+++	default:
+++		return false;
+++	}
+++
++ 	stat->bw = ri->bw;
++ 	stat->nss = ri->nss;
++ 	stat->rate_idx = ri->mcs;
++@@ -770,6 +786,8 @@ u32 ieee80211_rate_expected_tx_airtime(s
++ 		return ieee80211_calc_rx_airtime(hw, &stat, len) * 1024;
++ 
++ 	duration = ieee80211_get_rate_duration(hw, &stat, &overhead);
+++	if (!duration)
+++		return 0;
++ 
++ 	/*
++ 	 * Assume that HT/VHT transmission on any AC except VO will
+diff --git a/package/kernel/mac80211/patches/subsys/485-wifi-mac80211-keep-paired-old-chanctx-alive.patch b/package/kernel/mac80211/patches/subsys/485-wifi-mac80211-keep-paired-old-chanctx-alive.patch
+new file mode 100644
+index 0000000000..7406f51043
+--- /dev/null
++++ b/package/kernel/mac80211/patches/subsys/485-wifi-mac80211-keep-paired-old-chanctx-alive.patch
+@@ -0,0 +1,96 @@
++From 3412e9a800786d1dec4a58367db1cba275e7ef11 Mon Sep 17 00:00:00 2001
++From: Zhiling Zou <zhilinz@nebusec.ai>
++Date: Mon, 3 Aug 2026 12:35:10 +0800
++Subject: [PATCH] wifi: mac80211: keep paired old chanctx alive
++
++An in-place replacement keeps reciprocal replace_ctx pointers between
++the old WILL_BE_REPLACED chanctx and the new REPLACES_OTHER chanctx.
++However, the early free paths only consider assigned and reserved link
++users when deciding whether to free the old chanctx.
++
++That lets the old chanctx be freed too early while the replacement
++partner still points back to it, either when the last assigned link is
++released or when that link successfully reassigns to another existing
++context. Later unreserve and switch-finalization paths can then follow a
++stale replace_ctx pointer.
++
++Keep a paired old chanctx alive until the replacement pair has been torn
++down. Apply the same check to both __ieee80211_link_release_channel()
++and ieee80211_link_use_reserved_reassign(). If the replacement is later
++abandoned, ieee80211_link_unreserve_chanctx() already tears down the
++pairing before freeing the old chanctx once no users remain.
++
++Fixes: 5bcae31d9cb1 ("mac80211: implement multi-vif in-place reservations")
++Cc: stable@vger.kernel.org
++Reported-by: Vega <vega@nebusec.ai>
++Signed-off-by: Zhiling Zou <zhilinz@nebusec.ai>
++Link: https://patch.msgid.link/b9b582b0db3814f641648b8886bb50f9d68f93ac.1785730815.git.zhilinz@nebusec.ai
++Signed-off-by: Johannes Berg <johannes.berg@intel.com>
++---
++ net/mac80211/chan.c | 20 ++++++++++++++++++--
++ 1 file changed, 18 insertions(+), 2 deletions(-)
++
++--- a/net/mac80211/chan.c
+++++ b/net/mac80211/chan.c
++@@ -231,6 +231,13 @@ int ieee80211_chanctx_refcount(struct ie
++ 	return num;
++ }
++ 
+++static bool
+++ieee80211_chanctx_has_replace_partner(struct ieee80211_chanctx *ctx)
+++{
+++	return ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED &&
+++	       ctx->replace_ctx;
+++}
+++
++ static int ieee80211_num_chanctx(struct ieee80211_local *local, int radio_idx)
++ {
++ 	struct ieee80211_chanctx *ctx;
++@@ -1403,6 +1410,7 @@ void ieee80211_link_unreserve_chanctx(st
++ {
++ 	struct ieee80211_sub_if_data *sdata = link->sdata;
++ 	struct ieee80211_chanctx *ctx = link->reserved_chanctx;
+++	struct ieee80211_chanctx *old_ctx = NULL;
++ 
++ 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
++ 
++@@ -1416,6 +1424,7 @@ void ieee80211_link_unreserve_chanctx(st
++ 			if (WARN_ON(!ctx->replace_ctx))
++ 				return;
++ 
+++			old_ctx = ctx->replace_ctx;
++ 			WARN_ON(ctx->replace_ctx->replace_state !=
++ 			        IEEE80211_CHANCTX_WILL_BE_REPLACED);
++ 			WARN_ON(ctx->replace_ctx->replace_ctx != ctx);
++@@ -1426,6 +1435,11 @@ void ieee80211_link_unreserve_chanctx(st
++ 
++ 			list_del_rcu(&ctx->list);
++ 			kfree_rcu(ctx, rcu_head);
+++
+++			if (ieee80211_chanctx_refcount(sdata->local,
+++						       old_ctx) == 0)
+++				ieee80211_free_chanctx(sdata->local, old_ctx,
+++						       false);
++ 		} else {
++ 			ieee80211_free_chanctx(sdata->local, ctx, false);
++ 		}
++@@ -1705,7 +1719,8 @@ ieee80211_link_use_reserved_reassign(str
++ 
++ 	ieee80211_check_fast_xmit_iface(sdata);
++ 
++-	if (ieee80211_chanctx_refcount(local, old_ctx) == 0)
+++	if (ieee80211_chanctx_refcount(local, old_ctx) == 0 &&
+++	    !ieee80211_chanctx_has_replace_partner(old_ctx))
++ 		ieee80211_free_chanctx(local, old_ctx, false);
++ 
++ 	ieee80211_recalc_chanctx_min_def(local, new_ctx);
++@@ -2174,7 +2189,8 @@ void __ieee80211_link_release_channel(st
++ 	}
++ 
++ 	ieee80211_assign_link_chanctx(link, NULL, false);
++-	if (ieee80211_chanctx_refcount(local, ctx) == 0)
+++	if (ieee80211_chanctx_refcount(local, ctx) == 0 &&
+++	    !ieee80211_chanctx_has_replace_partner(ctx))
++ 		ieee80211_free_chanctx(local, ctx, skip_idle_recalc);
++ 
++ 	link->radar_required = false;
+diff --git a/package/kernel/mac80211/patches/subsys/486-wifi-mac80211-count-only-matching-reservations-in-reserved-switch.patch b/package/kernel/mac80211/patches/subsys/486-wifi-mac80211-count-only-matching-reservations-in-reserved-switch.patch
+new file mode 100644
+index 0000000000..806d1d99b7
+--- /dev/null
++++ b/package/kernel/mac80211/patches/subsys/486-wifi-mac80211-count-only-matching-reservations-in-reserved-switch.patch
+@@ -0,0 +1,126 @@
++From 437f3727b4fd715266c296435c116288f82666fd Mon Sep 17 00:00:00 2001
++From: Zhiling Zou <zhilinz@nebusec.ai>
++Date: Mon, 3 Aug 2026 11:28:22 +0800
++Subject: [PATCH] wifi: mac80211: count only matching reservations in reserved
++ switch
++
++ieee80211_vif_use_reserved_switch() validates a replacement by counting
++assigned links on ctx->replace_ctx and treating reservations too
++broadly. A link can still be assigned to the old channel context while
++holding a reservation that belongs to a different replacement
++operation.
++
++That can make the current replacement appear complete too early. If
++another link finalizes first, the function can free the
++WILL_BE_REPLACED chanctx while the unmatched link and driver still use
++it, leading to a use-after-free in later beacon generation.
++
++Require an in-place reservation to point at the current replacement
++context, and require the reserved and assigned contexts to be the
++matching replacement pair, before counting or moving the link.
++
++Fixes: 5bcae31d9cb1 ("mac80211: implement multi-vif in-place reservations")
++Cc: stable@vger.kernel.org
++Reported-by: Vega <vega@nebusec.ai>
++Signed-off-by: Zhiling Zou <zhilinz@nebusec.ai>
++Link: https://patch.msgid.link/4b6c4b8648ab1920c38a40be32c0b1a2797b4ac6.1785726007.git.zhilinz@nebusec.ai
++Signed-off-by: Johannes Berg <johannes.berg@intel.com>
++---
++ net/mac80211/chan.c | 30 +++++++++++++++++++++++-------
++ 1 file changed, 23 insertions(+), 7 deletions(-)
++
++--- a/net/mac80211/chan.c
+++++ b/net/mac80211/chan.c
++@@ -1785,7 +1785,8 @@ out:
++ }
++ 
++ static bool
++-ieee80211_link_has_in_place_reservation(struct ieee80211_link_data *link)
+++ieee80211_link_has_in_place_reservation(struct ieee80211_link_data *link,
+++					struct ieee80211_chanctx *ctx)
++ {
++ 	struct ieee80211_sub_if_data *sdata = link->sdata;
++ 	struct ieee80211_chanctx *old_ctx, *new_ctx;
++@@ -1795,6 +1796,9 @@ ieee80211_link_has_in_place_reservation(
++ 	new_ctx = link->reserved_chanctx;
++ 	old_ctx = ieee80211_link_get_chanctx(link);
++ 
+++	if (new_ctx != ctx)
+++		return false;
+++
++ 	if (!old_ctx)
++ 		return false;
++ 
++@@ -1807,6 +1811,12 @@ ieee80211_link_has_in_place_reservation(
++ 	if (new_ctx->replace_state != IEEE80211_CHANCTX_REPLACES_OTHER)
++ 		return false;
++ 
+++	if (new_ctx->replace_ctx != old_ctx)
+++		return false;
+++
+++	if (old_ctx->replace_ctx != new_ctx)
+++		return false;
+++
++ 	return true;
++ }
++ 
++@@ -1836,7 +1846,8 @@ static int ieee80211_chsw_switch_vifs(st
++ 		}
++ 
++ 		for_each_chanctx_user_reserved(local, ctx, &iter) {
++-			if (!ieee80211_link_has_in_place_reservation(iter.link))
+++			if (!ieee80211_link_has_in_place_reservation(iter.link,
+++								     ctx))
++ 				continue;
++ 
++ 			old_ctx = ieee80211_link_get_chanctx(iter.link);
++@@ -1938,7 +1949,9 @@ static int ieee80211_vif_use_reserved_sw
++ 
++ 		for_each_chanctx_user_assigned(local, ctx->replace_ctx, &iter) {
++ 			n_assigned++;
++-			if (iter.link && iter.link->reserved_chanctx) {
+++			if (iter.link &&
+++			    ieee80211_link_has_in_place_reservation(iter.link,
+++								    ctx)) {
++ 				n_reserved++;
++ 				if (iter.link->reserved_ready)
++ 					n_ready++;
++@@ -1963,7 +1976,8 @@ static int ieee80211_vif_use_reserved_sw
++ use_reserved:
++ 		ctx->conf.radar_enabled = false;
++ 		for_each_chanctx_user_reserved(local, ctx, &iter) {
++-			if (ieee80211_link_has_in_place_reservation(iter.link) &&
+++			if (ieee80211_link_has_in_place_reservation(iter.link,
+++								    ctx) &&
++ 			    !iter.link->reserved_ready)
++ 				return -EAGAIN;
++ 
++@@ -2004,7 +2018,8 @@ use_reserved:
++ 		}
++ 
++ 		for_each_chanctx_user_reserved(local, ctx, &iter) {
++-			if (!ieee80211_link_has_in_place_reservation(iter.link))
+++			if (!ieee80211_link_has_in_place_reservation(iter.link,
+++								     ctx))
++ 				continue;
++ 
++ 			ieee80211_chan_bw_change(local,
++@@ -2053,7 +2068,7 @@ use_reserved:
++ 			struct ieee80211_bss_conf *link_conf = link->conf;
++ 			u64 changed = 0;
++ 
++-			if (!ieee80211_link_has_in_place_reservation(link))
+++			if (!ieee80211_link_has_in_place_reservation(link, ctx))
++ 				continue;
++ 
++ 			rcu_assign_pointer(link_conf->chanctx_conf,
++@@ -2104,7 +2119,8 @@ use_reserved:
++ 		for_each_chanctx_user_reserved(local, ctx, &iter) {
++ 			struct ieee80211_link_data *link = iter.link;
++ 
++-			if (WARN_ON(ieee80211_link_has_in_place_reservation(link)))
+++			if (WARN_ON(ieee80211_link_has_in_place_reservation(link,
+++									    ctx)))
++ 				continue;
++ 
++ 			if (!link->reserved_ready)
+diff --git a/package/kernel/mac80211/patches/subsys/487-wifi-mac80211-drain-PS-delivery-work-during-station-teardown.patch b/package/kernel/mac80211/patches/subsys/487-wifi-mac80211-drain-PS-delivery-work-during-station-teardown.patch
+new file mode 100644
+index 0000000000..4bb347f190
+--- /dev/null
++++ b/package/kernel/mac80211/patches/subsys/487-wifi-mac80211-drain-PS-delivery-work-during-station-teardown.patch
+@@ -0,0 +1,71 @@
++From 67a9e80c3ca20c9044cd6ee72cd6278dd19b5023 Mon Sep 17 00:00:00 2001
++From: Zhao Li <enderaoelyther@gmail.com>
++Date: Wed, 16 Sep 2026 19:37:35 +0800
++Subject: [PATCH] wifi: mac80211: drain PS delivery work during station
++ teardown
++
++Removing an AP or mesh station can notify the driver and wake TXQs after
++the station has already been removed from the driver, and can update
++num_sta_ps and the power-save queues after station cleanup has purged
++them.
++
++sta_deliver_ps_frames() tests sta->dead only before it starts delivery. A
++worker that passes that test can be delayed while teardown sets sta->dead
++and removes the station from the driver; when it resumes it still runs the
++full delivery.
++
++The existing cancel_work_sync() sits near the end of
++__cleanup_single_sta(), after the final driver state transition and after
++PS accounting and queue purging, so it drains the worker only once the
++state it has to protect has already changed. Before commit d34ba2168a3c
++("mac80211: don't delay station destruction") cleanup was deferred
++through the same ordered workqueue as the delivery work, which kept the
++two ordered.
++
++Cancel the work after setting sta->dead and before moving the driver
++state, and move the existing cancellation to the start of
++__cleanup_single_sta(). The first drain closes the driver-lifetime window;
++driver callbacks during the remaining state transitions can still queue
++drv_deliver_wk through ieee80211_sta_block_awake(), so retain the second
++drain at the start of __cleanup_single_sta(). That drain also covers
++insertion failures, which reach cleanup without setting sta->dead.
++
++Fixes: d34ba2168a3c ("mac80211: don't delay station destruction")
++Cc: stable@vger.kernel.org
++Assisted-by: LLM sparse smatch coccinelle kasan
++Signed-off-by: Zhao Li <enderaoelyther@gmail.com>
++Link: https://patch.msgid.link/20260916113735.31029-1-enderaoelyther@gmail.com
++Signed-off-by: Johannes Berg <johannes.berg@intel.com>
++---
++ net/mac80211/sta_info.c | 6 ++++--
++ 1 file changed, 4 insertions(+), 2 deletions(-)
++
++--- a/net/mac80211/sta_info.c
+++++ b/net/mac80211/sta_info.c
++@@ -137,6 +137,8 @@ static void __cleanup_single_sta(struct
++ 	struct ieee80211_local *local = sdata->local;
++ 	struct ps_data *ps;
++ 
+++	cancel_work_sync(&sta->drv_deliver_wk);
+++
++ 	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
++ 	    test_sta_flag(sta, WLAN_STA_PS_DRIVER) ||
++ 	    test_sta_flag(sta, WLAN_STA_PS_DELIVER)) {
++@@ -166,8 +168,6 @@ static void __cleanup_single_sta(struct
++ 	if (ieee80211_vif_is_mesh(&sdata->vif))
++ 		mesh_sta_cleanup(sta);
++ 
++-	cancel_work_sync(&sta->drv_deliver_wk);
++-
++ 	/*
++ 	 * Destroy aggregation state here. It would be nice to wait for the
++ 	 * driver to finish aggregation stop and then clean up, but for now
++@@ -1631,6 +1631,8 @@ static void __sta_info_destroy_part2(str
++ 
++ 	sta->dead = true;
++ 
+++	cancel_work_sync(&sta->drv_deliver_wk);
+++
++ 	local->num_sta--;
++ 	local->sta_generation++;
++ 
+diff --git a/package/kernel/mac80211/patches/subsys/488-wifi-mac80211-shut-down-RX-BA-session-timer-on-teardown.patch b/package/kernel/mac80211/patches/subsys/488-wifi-mac80211-shut-down-RX-BA-session-timer-on-teardown.patch
+new file mode 100644
+index 0000000000..b0083d1487
+--- /dev/null
++++ b/package/kernel/mac80211/patches/subsys/488-wifi-mac80211-shut-down-RX-BA-session-timer-on-teardown.patch
+@@ -0,0 +1,41 @@
++From e588e83e5c7a0f6d7a77dbbb58927c8c8cfd598e Mon Sep 17 00:00:00 2001
++From: Zhao Li <enderaoelyther@gmail.com>
++Date: Thu, 10 Sep 2026 14:54:02 +0800
++Subject: [PATCH] wifi: mac80211: shut down RX BA session timer on teardown
++
++Tearing down an RX BA session can leave the session timer queued on a
++freed tid_rx. Later timer-wheel processing and the timer callback itself
++then run against freed memory.
++
++An RX BAR handler can dereference tid_rx under RCU before teardown
++unpublishes it and stay in its read-side critical section while teardown
++deletes the session timer. The stale handler can then rearm the timer
++after timer_delete_sync() returns and before the RCU callback frees
++tid_rx.
++
++Use timer_shutdown_sync() so rearm attempts become ineffective once
++teardown starts. Keep reorder_timer unchanged: teardown marks the session
++removed under reorder_lock and its release path checks that state before
++rearming. session_timer has no equivalent guard because
++ieee80211_rx_h_ctrl() rearms it before taking reorder_lock.
++
++Fixes: a87f736d942c ("mac80211: use RCU for RX aggregation")
++Cc: stable@kernel.org # 5.15+
++Assisted-by: LLM sparse kasan
++Signed-off-by: Zhao Li <enderaoelyther@gmail.com>
++Signed-off-by: Johannes Berg <johannes.berg@intel.com>
++---
++ net/mac80211/agg-rx.c | 2 +-
++ 1 file changed, 1 insertion(+), 1 deletion(-)
++
++--- a/net/mac80211/agg-rx.c
+++++ b/net/mac80211/agg-rx.c
++@@ -102,7 +102,7 @@ void __ieee80211_stop_rx_ba_session(stru
++ 	if (!tid_rx)
++ 		return;
++ 
++-	timer_delete_sync(&tid_rx->session_timer);
+++	timer_shutdown_sync(&tid_rx->session_timer);
++ 
++ 	/* make sure ieee80211_sta_reorder_release() doesn't re-arm the timer */
++ 	spin_lock_bh(&tid_rx->reorder_lock);
+diff --git a/package/kernel/mac80211/patches/subsys/489-wifi-mac80211-drop-oversized-fragments-to-avoid-extra_len-overflow.patch b/package/kernel/mac80211/patches/subsys/489-wifi-mac80211-drop-oversized-fragments-to-avoid-extra_len-overflow.patch
+new file mode 100644
+index 0000000000..c3026953e5
+--- /dev/null
++++ b/package/kernel/mac80211/patches/subsys/489-wifi-mac80211-drop-oversized-fragments-to-avoid-extra_len-overflow.patch
+@@ -0,0 +1,86 @@
++From 5e4f3509793b4db2c0835340224743db680e861f Mon Sep 17 00:00:00 2001
++From: Yuchao Zhang <ndaugoing@gmail.com>
++Date: Fri, 18 Sep 2026 11:40:04 +0800
++Subject: [PATCH] wifi: mac80211: drop oversized fragments to avoid extra_len
++ overflow
++
++In ieee80211_rx_h_defragment(), fragment payloads are accumulated into
++entry->extra_len as subsequent fragments arrive:
++
++        entry->extra_len += rx->skb->len;
++
++When the final fragment arrives, the head fragment is dequeued, and
++pskb_expand_head() is called with entry->extra_len to ensure sufficient
++tailroom for all queued fragments before copying:
++
++        if (skb_tailroom(rx->skb) < entry->extra_len) {
++                if (unlikely(pskb_expand_head(rx->skb, 0, entry->extra_len,
++                                              GFP_ATOMIC))) {
++                        ...
++                }
++        }
++        while ((skb = __skb_dequeue(&entry->skb_list))) {
++                skb_put_data(rx->skb, skb->data, skb->len);
++                dev_kfree_skb(skb);
++        }
++
++In commit 69f132236827 ("mac80211: shrink struct
++ieee80211_fragment_entry"), entry->extra_len was narrowed from unsigned
++int to u16 in order to reduce structure memory footprint.
++
++However, an IEEE 802.11 frame sequence can contain up to 16 fragments
++(frag numbers 0..15). If a sequence of large fragments arrives (e.g. from
++a malicious peer or rogue AP), the sum of fragment lengths can exceed
++65535 bytes (for example, 15 fragments of 4400 bytes total 66000 bytes).
++Because extra_len is a u16, this addition overflows and wraps around
++modulo 65536 (e.g. 66000 wraps to 464).
++
++Consequently, pskb_expand_head() allocates only the truncated amount of
++tailroom (or is skipped entirely if the head fragment already has >= 464
++bytes of tailroom). When skb_put_data() subsequently iterates through the
++queued skb list, it appends the full payload into the undersized buffer,
++causing skb_put() to trigger skb_over_panic() and crash the kernel in
++softirq context.
++
++A legitimate MSDU in IEEE 802.11 is at most 2304 bytes (or up to 7935/11454
++bytes for A-MSDU, which is not fragmented), well below U16_MAX.
++
++Fix this without increasing the size of struct ieee80211_fragment_entry by
++checking whether adding the incoming fragment length would exceed U16_MAX.
++If so, purge the queued fragments and drop the frame.
++
++Fixes: 69f132236827 ("mac80211: shrink struct ieee80211_fragment_entry")
++Signed-off-by: Yuchao Zhang <ndaugoing@gmail.com>
++Link: https://patch.msgid.link/20260918034004.85078-2-ndaugoing@gmail.com
++[assign a separate drop reason]
++Signed-off-by: Johannes Berg <johannes.berg@intel.com>
++---
++ net/mac80211/drop.h | 1 +
++ net/mac80211/rx.c   | 6 ++++++
++ 2 files changed, 7 insertions(+)
++
++--- a/net/mac80211/drop.h
+++++ b/net/mac80211/drop.h
++@@ -108,6 +108,7 @@ typedef unsigned int __bitwise ieee80211
++ 	R(RX_DROP_U_UNHANDLED_PREQ)		\
++ 	R(RX_DROP_U_UNHANDLED_MGMT_STYPE)	\
++ 	R(RX_DROP_U_NO_LINK)			\
+++	R(RX_DROP_U_DEFRAG_OVERFLOW)		\
++ /* this line for the trailing \ - add before this */
++ 
++ /* having two enums allows for checking ieee80211_rx_result use with sparse */
++--- a/net/mac80211/rx.c
+++++ b/net/mac80211/rx.c
++@@ -2508,6 +2508,12 @@ ieee80211_rx_h_defragment(struct ieee802
++ 	}
++ 
++ 	skb_pull(rx->skb, ieee80211_hdrlen(fc));
+++	if (unlikely((u32)entry->extra_len + rx->skb->len > U16_MAX)) {
+++		I802_DEBUG_INC(rx->local->rx_handlers_drop_defrag);
+++		__skb_queue_purge(&entry->skb_list);
+++		return RX_DROP_U_DEFRAG_OVERFLOW;
+++	}
+++
++ 	__skb_queue_tail(&entry->skb_list, rx->skb);
++ 	entry->last_frag = frag;
++ 	entry->extra_len += rx->skb->len;
+diff --git a/package/kernel/mac80211/patches/subsys/490-wifi-cfg80211-fix-RTS-threshold-setting-for-single-radio-PHY.patch b/package/kernel/mac80211/patches/subsys/490-wifi-cfg80211-fix-RTS-threshold-setting-for-single-radio-PHY.patch
+new file mode 100644
+index 0000000000..f0010c642f
+--- /dev/null
++++ b/package/kernel/mac80211/patches/subsys/490-wifi-cfg80211-fix-RTS-threshold-setting-for-single-radio-PHY.patch
+@@ -0,0 +1,40 @@
++From 9eda41e32263806a66835e275efdcc0c5f46bbc4 Mon Sep 17 00:00:00 2001
++From: Stanislaw Gruszka <stf_xl@wp.pl>
++Date: Sat, 19 Sep 2026 11:24:54 +0200
++Subject: [PATCH] wifi: cfg80211: fix RTS threshold setting for single-radio
++ PHY
++
++Due to an incorrect old_radio_rts_threshold check, we do not set
++rdev->wiphy.rts_threshold for a single-radio PHY, and the threshold
++value is not propagated to lower layers.
++
++Cc: stable@vger.kernel.org
++Fixes: 264637941cf4 ("wifi: cfg80211: Add Support to Set RTS Threshold for each Radio")
++Signed-off-by: Stanislaw Gruszka <stf_xl@wp.pl>
++Link: https://patch.msgid.link/20260919092454.50266-1-stf_xl@wp.pl
++Signed-off-by: Johannes Berg <johannes.berg@intel.com>
++---
++ net/wireless/nl80211.c | 11 ++++++-----
++ 1 file changed, 6 insertions(+), 5 deletions(-)
++
++--- a/net/wireless/nl80211.c
+++++ b/net/wireless/nl80211.c
++@@ -4608,12 +4608,13 @@ static int nl80211_set_wiphy(struct sk_b
++ 			rdev->wiphy.retry_long = retry_long;
++ 		if (changed & WIPHY_PARAM_FRAG_THRESHOLD)
++ 			rdev->wiphy.frag_threshold = frag_threshold;
++-		if ((changed & WIPHY_PARAM_RTS_THRESHOLD) &&
++-		    old_radio_rts_threshold) {
+++		if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
++ 			rdev->wiphy.rts_threshold = rts_threshold;
++-			for (i = 0 ; i < rdev->wiphy.n_radio; i++)
++-				rdev->wiphy.radio_cfg[i].rts_threshold =
++-					rdev->wiphy.rts_threshold;
+++			if (old_radio_rts_threshold) {
+++				for (i = 0; i < rdev->wiphy.n_radio; i++)
+++					rdev->wiphy.radio_cfg[i].rts_threshold =
+++						rdev->wiphy.rts_threshold;
+++			}
++ 		}
++ 		if (changed & WIPHY_PARAM_COVERAGE_CLASS)
++ 			rdev->wiphy.coverage_class = coverage_class;

@@ -10,3 +10,5 @@ cfd8a08c4a qualcommax: ipq50xx: refuse sysupgrade on Archer AX23 v2
 1fb53355f3 wifi-scripts: do not let another radio's '00' country break hostapd
 2920d8d0ec uboot-envtools: qualcommax: add Archer AX23 v2
 ae0a241842 mac80211: ath11k: smaller TX completion ring in FW memory mode 2
+2a7452018b mac80211: ath11k/ath12k: backport mac_phy_caps stride fix
+1ba526ba15 mac80211: backport ath11k and mac80211 fixes from OpenWrt main

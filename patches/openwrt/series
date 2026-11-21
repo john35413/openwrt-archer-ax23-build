@@ -10,3 +10,5 @@
 0010-wifi-scripts-do-not-let-another-radio-s-00-country-b.patch
 0011-uboot-envtools-qualcommax-add-Archer-AX23-v2.patch
 0012-mac80211-ath11k-smaller-TX-completion-ring-in-FW-mem.patch
+0013-mac80211-ath11k-ath12k-backport-mac_phy_caps-stride-.patch
+0014-mac80211-backport-ath11k-and-mac80211-fixes-from-Ope.patch

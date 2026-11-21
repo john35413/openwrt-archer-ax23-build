@@ -1,0 +1,165 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: John Macias <dencity7@gmail.com>
+Date: Wed, 21 Oct 2026 23:40:46 -0700
+Subject: [PATCH 13/14] mac80211: ath11k/ath12k: backport mac_phy_caps stride
+ fix
+
+Backport from ath-next:
+7a246c72132e ("wifi: ath11k: fix stride mismatch in mac_phy_caps_parse()")
+4c6eb712a91f ("wifi: ath12k: fix stride mismatch in mac_phy_caps_parse()")
+
+When firmware sends MAC/PHY capability TLVs shorter than the driver's
+struct, both parsers size the buffer by the clamped TLV length but
+advance the copy destination by the full struct size, so the second and
+later entries are written past the end of the allocation
+(CVE-2026-90398 / CVE-2026-90399). backports-7.2 still has the old code.
+
+Both patches apply to backports-7.2 on top of the current mac80211
+patch set with offsets only. Compile tested: ath11k for qualcommax/ipq807x
+and ath12k for qualcommbe/ipq53xx with the OpenWrt toolchain, no new
+warnings.
+
+Assisted-by: LLM
+Signed-off-by: John Macias <dencity7@gmail.com>
+Link: https://github.com/openwrt/openwrt/pull/26175
+Signed-off-by: Robert Marko <robimarko@gmail.com>
+(cherry picked from commit 5062c68dfdee8eef1f1ba14f75ed4ff3444280c5)
+---
+ ...tride-mismatch-in-mac_phy_caps_parse.patch | 60 +++++++++++++++++++
+ ...tride-mismatch-in-mac_phy_caps_parse.patch | 60 +++++++++++++++++++
+ 2 files changed, 120 insertions(+)
+ create mode 100644 package/kernel/mac80211/patches/ath11k/102-wifi-ath11k-fix-stride-mismatch-in-mac_phy_caps_parse.patch
+ create mode 100644 package/kernel/mac80211/patches/ath12k/110-wifi-ath12k-fix-stride-mismatch-in-mac_phy_caps_parse.patch
+
+diff --git a/package/kernel/mac80211/patches/ath11k/102-wifi-ath11k-fix-stride-mismatch-in-mac_phy_caps_parse.patch b/package/kernel/mac80211/patches/ath11k/102-wifi-ath11k-fix-stride-mismatch-in-mac_phy_caps_parse.patch
+new file mode 100644
+index 0000000000..ec89fd67ba
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath11k/102-wifi-ath11k-fix-stride-mismatch-in-mac_phy_caps_parse.patch
+@@ -0,0 +1,60 @@
++From 7a246c72132eb943b5844ba79dad597b47429dba Mon Sep 17 00:00:00 2001
++From: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++Date: Tue, 28 Jul 2026 18:05:29 -0700
++Subject: [PATCH] wifi: ath11k: fix stride mismatch in mac_phy_caps_parse()
++
++Currently, in ath11k_wmi_tlv_mac_phy_caps_parse(), kcalloc() sizes the
++mac_phy_caps buffer as tot_phy_id * len, where len is clamped to
++min(firmware_len, sizeof(struct wmi_mac_phy_capabilities)). The subsequent
++memcpy() destination advances by sizeof(full struct) per slot via C
++pointer arithmetic, not by the clamped len. When firmware sends short
++TLVs, the second and later slots are written past the end of the
++allocation.
++
++The reader in ath11k_pull_mac_phy_cap_svc_ready_ext() also indexes the
++buffer with full-struct pointer arithmetic, so the allocation must match
++that stride.
++
++Fix by using kzalloc_objs(), which derives the element size from the
++pointer type, making allocation size and pointer stride provably
++consistent regardless of what len the firmware provides.
++
++Compile tested only.
++
++Fixes: 5b90fc760db5 ("ath11k: fix wmi service ready ext tlv parsing")
++Assisted-by: Claude:claude-sonnet-4-6
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260728-mac_phy_caps_parse-stride-mismatch-v1-2-27a9c1a3fbd0@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath11k/wmi.c | 8 +++++---
++ 1 file changed, 5 insertions(+), 3 deletions(-)
++
++diff --git a/drivers/net/wireless/ath/ath11k/wmi.c b/drivers/net/wireless/ath/ath11k/wmi.c
++index d6feaa710f..66547e9ee1 100644
++--- a/drivers/net/wireless/ath/ath11k/wmi.c
+++++ b/drivers/net/wireless/ath/ath11k/wmi.c
++@@ -4809,14 +4809,16 @@ static int ath11k_wmi_tlv_mac_phy_caps_parse(struct ath11k_base *soc,
++ 	if (svc_rdy_ext->n_mac_phy_caps >= svc_rdy_ext->tot_phy_id)
++ 		return -ENOBUFS;
++ 
++-	len = min_t(u16, len, sizeof(struct wmi_mac_phy_capabilities));
++ 	if (!svc_rdy_ext->n_mac_phy_caps) {
++-		svc_rdy_ext->mac_phy_caps = kcalloc(svc_rdy_ext->tot_phy_id,
++-						    len, GFP_ATOMIC);
+++		svc_rdy_ext->mac_phy_caps =
+++			kzalloc_objs(*svc_rdy_ext->mac_phy_caps,
+++				     svc_rdy_ext->tot_phy_id,
+++				     GFP_ATOMIC);
++ 		if (!svc_rdy_ext->mac_phy_caps)
++ 			return -ENOMEM;
++ 	}
++ 
+++	len = min_t(u16, len, sizeof(struct wmi_mac_phy_capabilities));
++ 	memcpy(svc_rdy_ext->mac_phy_caps + svc_rdy_ext->n_mac_phy_caps, ptr, len);
++ 	svc_rdy_ext->n_mac_phy_caps++;
++ 	return 0;
++-- 
++2.47.3
++
+diff --git a/package/kernel/mac80211/patches/ath12k/110-wifi-ath12k-fix-stride-mismatch-in-mac_phy_caps_parse.patch b/package/kernel/mac80211/patches/ath12k/110-wifi-ath12k-fix-stride-mismatch-in-mac_phy_caps_parse.patch
+new file mode 100644
+index 0000000000..6c321cb07a
+--- /dev/null
++++ b/package/kernel/mac80211/patches/ath12k/110-wifi-ath12k-fix-stride-mismatch-in-mac_phy_caps_parse.patch
+@@ -0,0 +1,60 @@
++From 4c6eb712a91fa079be6f9f1419c96e0ad2227081 Mon Sep 17 00:00:00 2001
++From: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++Date: Tue, 28 Jul 2026 18:05:28 -0700
++Subject: [PATCH] wifi: ath12k: fix stride mismatch in mac_phy_caps_parse()
++
++Currently, in ath12k_wmi_mac_phy_caps_parse(), kzalloc() sizes the
++mac_phy_caps buffer as tot_phy_id * len, where len is clamped to
++min(firmware_len, sizeof(struct ath12k_wmi_mac_phy_caps_params)). The
++subsequent memcpy() destination advances by sizeof(full struct) per slot
++via C pointer arithmetic, not by the clamped len. When firmware sends
++short TLVs, the second and later slots are written past the end of the
++allocation.
++
++The reader in ath12k_pull_mac_phy_cap_svc_ready_ext() also indexes the
++buffer with full-struct pointer arithmetic, so the allocation must match
++that stride.
++
++Fix by using kzalloc_objs(), which derives the element size from the
++pointer type, making allocation size and pointer stride provably
++consistent regardless of what len the firmware provides.
++
++Tested-on: WCN7850 hw2.0 PCI WLAN.HMT.1.1.c7-00108-QCAHMTSWPL_V1.0_V2.0_SILICONZ_UPSTREAM-3
++
++Fixes: d889913205cf ("wifi: ath12k: driver for Qualcomm Wi-Fi 7 devices")
++Assisted-by: Claude:claude-sonnet-4-6
++Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
++Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
++Link: https://patch.msgid.link/20260728-mac_phy_caps_parse-stride-mismatch-v1-1-27a9c1a3fbd0@oss.qualcomm.com
++Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
++---
++ drivers/net/wireless/ath/ath12k/wmi.c | 8 +++++---
++ 1 file changed, 5 insertions(+), 3 deletions(-)
++
++diff --git a/drivers/net/wireless/ath/ath12k/wmi.c b/drivers/net/wireless/ath/ath12k/wmi.c
++index e9e7566e0f..d5160af60e 100644
++--- a/drivers/net/wireless/ath/ath12k/wmi.c
+++++ b/drivers/net/wireless/ath/ath12k/wmi.c
++@@ -4774,14 +4774,16 @@ static int ath12k_wmi_mac_phy_caps_parse(struct ath12k_base *soc,
++ 	if (svc_rdy_ext->n_mac_phy_caps >= svc_rdy_ext->tot_phy_id)
++ 		return -ENOBUFS;
++ 
++-	len = min_t(u16, len, sizeof(struct ath12k_wmi_mac_phy_caps_params));
++ 	if (!svc_rdy_ext->n_mac_phy_caps) {
++-		svc_rdy_ext->mac_phy_caps = kzalloc((svc_rdy_ext->tot_phy_id) * len,
++-						    GFP_ATOMIC);
+++		svc_rdy_ext->mac_phy_caps =
+++			kzalloc_objs(*svc_rdy_ext->mac_phy_caps,
+++				     svc_rdy_ext->tot_phy_id,
+++				     GFP_ATOMIC);
++ 		if (!svc_rdy_ext->mac_phy_caps)
++ 			return -ENOMEM;
++ 	}
++ 
+++	len = min_t(u16, len, sizeof(struct ath12k_wmi_mac_phy_caps_params));
++ 	memcpy(svc_rdy_ext->mac_phy_caps + svc_rdy_ext->n_mac_phy_caps, ptr, len);
++ 	svc_rdy_ext->n_mac_phy_caps++;
++ 	return 0;
++-- 
++2.47.3
++
