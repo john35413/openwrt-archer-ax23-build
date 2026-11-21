@@ -12,7 +12,7 @@ Run it all with `./tools/test-dev.sh`. Raw logs: `logs/test-*.log`, `logs/networ
 | Variant | Result | Evidence |
 |---|---|---|
 | baseline (Sply-Dev `93028b4` on OpenWrt `98b1185`) | PASS: builds from scratch with pinned feeds | `logs/baseline/`, `artifacts/ram-only/baseline/{SHA256SUMS,BUILDINFO}` |
-| dev (baseline + 9 patches) | PASS: all 9 patches apply (`git am`); kernel with 777 v7 + UNIPHY fixes and mac80211 with patch 960 compile; image validates with **0 FAIL** | `logs/dev/`, `reports/artifacts-dev.txt`, `artifacts/ram-only/dev/` |
+| dev (baseline + 10 patches, rebuilt from scratch) | PASS: all 9 patches apply (`git am`); kernel with 777 v7 + UNIPHY fixes and mac80211 with patch 960 compile; image validates with **0 FAIL** | `logs/dev/`, `reports/artifacts-dev.txt`, `artifacts/ram-only/dev/` |
 
 Problems found and fixed while reproducing the build: GNU tar refuses to configure as root
 (`FORCE_UNSAFE_CONFIGURE=1`); `docs/BUILD.md`'s `patch -p1` step for the 777 series is wrong
@@ -37,7 +37,7 @@ Dev (`reports/artifacts-dev.txt`): **all checks PASS**: the same FIT/DTB checks 
 triggers 2.4G→phy0tpt / 5G→phy1tpt, caldata fix and sysupgrade interlock in the rootfs, and
 ath11k compiled from patched backports (object newer than patched source). Board data ABSENT
 (INFO), so Wi-Fi stays BLOCKED until the user supplies their unit's own board files.
-Initramfs: 13,321,604 bytes, sha256 `b622f545…6198b`; decompressed kernel 23.6 MB.
+Initramfs (rebuilt from scratch with patches 0001-0010): 13,321,784 bytes, sha256 `aac3c656…f009d466e`.
 
 ## 3. Unit tests
 

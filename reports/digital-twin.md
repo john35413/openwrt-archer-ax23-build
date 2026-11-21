@@ -37,7 +37,7 @@ Reproduce: `./tools/build-twin.sh && ./tests/twin/run-twin.sh`
 
 ## Results
 
-**Run 6: 48 PASS, 0 FAIL, 1 INFO** (`logs/twin/results-run6.tsv`). Run 7 (repeat, unchanged image): **48 PASS, 0 FAIL** (`logs/twin/results-run7.tsv`). Earlier runs 1-5 failed while the bugs below were being found and fixed; their logs are kept in `logs/twin/run*.console`.
+**Run 6: 48 PASS, 0 FAIL, 1 INFO** (`logs/twin/results-run6.tsv`). Runs 7 and 8 (repeats; run 8 with the final committed harness): **48 PASS, 0 FAIL** each (`logs/twin/results-run7.tsv`, `results-run8.tsv`). Earlier runs 1-5 failed while the bugs below were being found and fixed; their logs are kept in `logs/twin/run*.console`.
 
 Throughput figures come from an *emulated* CPU (QEMU TCG on x86) and simulated radios. They say nothing about the real router's performance.
 

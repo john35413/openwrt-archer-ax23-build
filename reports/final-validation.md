@@ -6,12 +6,12 @@ connected, flashed or modified.**
 Evidence kinds: **SRC** source inspection · **STATIC** static/offline test ·
 **SIM** simulation (namespaces in a VM / qemu-user) · **HW-3P** third-party
 hardware logs on an *AX21 v5 (US) running AX23 v2 firmware* (not an EU AX23 v2) ·
-**HW** our own hardware test (none) · **TWIN** full-system digital twin: the same OpenWrt software booted in QEMU with simulated radios (`reports/digital-twin.md`, 48/48 PASS in two consecutive runs). TWIN never exercises the AX23 chips.
+**HW** our own hardware test (none) · **TWIN** full-system digital twin: the same OpenWrt software booted in QEMU with simulated radios (`reports/digital-twin.md`, 48/48 PASS in three consecutive runs (6, 7, 8)). TWIN never exercises the AX23 chips.
 
 ## Deliverable
 
 `artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb`
-(13,321,604 bytes, sha256 `b622f545b29c2baa0278fcb91b339be7c6ce417a7d58f4e4de52fabfd596198b`).
+(13,321,784 bytes, sha256 `aac3c65684eca661677b511b4cf2275013b1399753795b71cf736c5f009d466e`; built from scratch with patches 0001-0010, no host-tool seeding).
 **RAM boot only (UART + TFTP).** Binaries are git-ignored; rebuild with `./tools/build-dev.sh --variant dev`.
 The checksums and BUILDINFO are committed. Everything in `artifacts/experimental-do-not-flash/` stays unflashed.
 

@@ -1,7 +1,1 @@
 static	PASS	logs/test-static.log
-unit-python	PASS	logs/test-unit-python.log
-unit-caldata	PASS	logs/test-unit-caldata.log
-unit-mac	PASS	logs/test-unit-mac.log
-unit-bdf-extract	PASS	logs/test-unit-bdf-extract.log
-fw4-generate	PASS	logs/test-fw4-generate.log
-network-sim	PASS	logs/test-network-sim.log

@@ -21,7 +21,7 @@ ip link set "$(ifmac 52:54:00:aa:00:00)" netns isp name wanp
 ip link set "$(ifmac 52:54:00:aa:00:01)" netns c1 name eth0
 ip link set "$(ifmac 52:54:00:aa:00:02)" netns c2 name eth0
 ip link set "$(ifmac 52:54:00:aa:00:03)" netns c3 name eth0
-for n in isp; do x $n ip link set wanp up; done
+x isp ip link set wanp up
 for n in c1 c2 c3; do x $n ip link set eth0 up; done
 ip link add up1 netns inet type veth peer name dn netns isp
 x inet ip link set up1 up; x isp ip link set dn up
@@ -51,19 +51,19 @@ ipof() { x "$1" ip -4 -o addr show dev eth0 | awk '{print $4}' | cut -d/ -f1 | h
 # (correctly) refused by the router.
 # ------------------------------------------------------------ boot
 t0=$(date +%s); up=0
-for i in $(seq 1 120); do dhcp c1 && { up=1; break; }; sleep 3; done
+for _ in $(seq 1 120); do dhcp c1 && { up=1; break; }; sleep 3; done
 t1=$(date +%s)
 [ $up = 1 ] && res T01 PASS "router VM boots; LAN DHCP answers" "$((t1-t0)) s after helper start (TCG emulation)" \
 	|| { res T01 FAIL "router boot / LAN DHCP"; echo "SUMMARY pass=$PASS fail=$FAIL"; exit 1; }
 SSHO=(-i "$KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o LogLevel=ERROR -o BatchMode=yes)
 R() { x c1 ssh "${SSHO[@]}" root@192.168.1.1 "$@"; }
-for i in $(seq 1 30); do R true 2>/dev/null && break; sleep 3; done
+for _ in $(seq 1 30); do R true 2>/dev/null && break; sleep 3; done
 R true && res T02 PASS "SSH to router from LAN (key auth)" || res T02 FAIL "SSH to router"
 R 'uname -a; cat /etc/openwrt_release; free; ip -br link; iw dev; logread | tail -40' >"$OUT/router-state-boot.txt" 2>&1
 
 b=$(R 'ls /sys/class/net/br-lan/brif | sort | tr "\n" " "')
 case "$b" in *lan1*lan2*lan3*lan4*) res T03 PASS "AX23 port names; br-lan members" "$b" ;; *) res T03 FAIL "br-lan members" "$b" ;; esac
-for i in $(seq 1 40); do WANIP=$(R 'ifstatus wan | jsonfilter -e "@[\"ipv4-address\"][0].address"' 2>/dev/null); [ -n "$WANIP" ] && break; sleep 3; done
+for _ in $(seq 1 40); do WANIP=$(R 'ifstatus wan | jsonfilter -e "@[\"ipv4-address\"][0].address"' 2>/dev/null); [ -n "$WANIP" ] && break; sleep 3; done
 [ -n "$WANIP" ] && res T04 PASS "WAN DHCP lease from ISP" "$WANIP" || res T04 FAIL "WAN DHCP"
 sleep 5; v6=$(R 'ip -6 -o addr show dev wan scope global' | awk '{print $4}' | head -1)
 case "$v6" in 2001:db8:ffff:*) res T05 PASS "WAN IPv6 (SLAAC/RA via wan6)" "$v6" ;; *) res T05 FAIL "WAN IPv6" "$v6" ;; esac
@@ -97,7 +97,7 @@ r=$(x inet socat -T 3 - "TCP4:$WANIP:80,connect-timeout=3" 2>&1 | head -c 40)
 x inet busybox wget -q -T 5 -O /dev/null "http://$WANIP/" 2>/dev/null && res T18 FAIL "LuCI reachable from WAN" || res T18 PASS "LuCI not reachable from WAN"
 
 # ------------------------------------------------------------ Wi-Fi (mac80211_hwsim)
-for i in $(seq 1 40); do n=$(R 'ubus call network.wireless status' 2>/dev/null | grep -c '"up": true'); [ "$n" -ge 2 ] && break; sleep 3; done
+for _ in $(seq 1 40); do n=$(R 'ubus call network.wireless status' 2>/dev/null | grep -c '"up": true'); [ "$n" -ge 2 ] && break; sleep 3; done
 [ "${n:-0}" -ge 2 ] && res W01 PASS "both radios up under netifd/hostapd" "radio0 (2.4G) + radio1 (5G)" || res W01 FAIL "radios up" "$n"
 R 'iw dev' >"$OUT/router-iw-dev.txt" 2>&1
 R "logread | grep -iE 'hostapd|wifi-scripts|country|regdom|nl80211|wpa'" >"$OUT/router-logread-wifi.txt" 2>&1
@@ -170,7 +170,7 @@ bad=$(STA phy3 AX23-5G WPA-PSK twin-test-wpa3)
 [ -z "$bad" ] && res W18 PASS "WPA2-PSK client cannot join the SAE-only 5 GHz SSID" || res W18 FAIL "SAE-only SSID accepted WPA2" "$bad"
 # reconnect stability (SAE)
 S5=$(STA phy3 AX23-5G SAE twin-test-wpa3); okc=0; t0=$(date +%s)
-for k in $(seq 1 20); do
+for _ in $(seq 1 20); do
 	r=$(R "ip netns exec sta-phy3 wpa_cli -p /var/run/wpa-phy3 disconnect >/dev/null; sleep 1; ip netns exec sta-phy3 wpa_cli -p /var/run/wpa-phy3 reconnect >/dev/null
 	       for j in \$(seq 1 30); do ip netns exec sta-phy3 wpa_cli -p /var/run/wpa-phy3 status | grep -q wpa_state=COMPLETED && break; sleep 1; done
 	       ip netns exec sta-phy3 ping -c1 -W3 192.168.1.1 >/dev/null && echo ok")
@@ -207,8 +207,8 @@ SX phy2 ping -c3 -W3 93.184.215.10 >/dev/null && aw=ok || aw=fail
 awk "BEGIN{exit !($sl < 1)}" && [ $aw = ok ] && res S04 PASS "3 min mixed wired+Wi-Fi load: router responsive" "LAN ping loss ${sl}%, 2.4G client still online" || res S04 FAIL "3 min load" "loss=$sl wifi=$aw"
 # reboot and full recovery
 R 'reboot' >/dev/null 2>&1; sleep 20; t0=$(date +%s); back=0
-for i in $(seq 1 120); do dhcp c1 && R true 2>/dev/null && { back=1; break; }; sleep 3; done
-for i in $(seq 1 40); do n=$(R 'ubus call network.wireless status' 2>/dev/null | grep -c '"up": true'); [ "${n:-0}" -ge 2 ] && break; sleep 3; done
+for _ in $(seq 1 120); do dhcp c1 && R true 2>/dev/null && { back=1; break; }; sleep 3; done
+for _ in $(seq 1 40); do n=$(R 'ubus call network.wireless status' 2>/dev/null | grep -c '"up": true'); [ "${n:-0}" -ge 2 ] && break; sleep 3; done
 [ $back = 1 ] && [ "${n:-0}" -ge 2 ] && R 'ping -c2 -W2 93.184.215.10' >/dev/null && res S05 PASS "reboot: LAN, WAN and both radios come back" "$(( $(date +%s)-t0 )) s" || res S05 FAIL "recovery after reboot" "back=$back radios=$n"
 R 'logread' >"$OUT/router-logread-final.txt" 2>&1; R 'dmesg' >"$OUT/router-dmesg-final.txt" 2>&1
 echo "pass=$PASS fail=$FAIL" >>"$RES"
