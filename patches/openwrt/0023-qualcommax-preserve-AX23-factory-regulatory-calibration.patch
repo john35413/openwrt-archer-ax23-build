@@ -1,0 +1,31 @@
+From 6e115a0d02c1c0f236ec98c39375c294c66bb3f1 Mon Sep 17 00:00:00 2001
+From: Codex <codex@users.noreply.github.com>
+Date: Sat, 21 Nov 2026 22:07:45 +0200
+Subject: [PATCH] qualcommax: preserve factory regulatory calibration on both
+ AX23 radios
+
+Keep the per-unit regulatory words when creating the RAM calibration copy. Board data and user country configuration do not establish that clearing these words is appropriate for the EU board. Leave other devices and MAC handling unchanged.
+---
+ .../ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
+index 3ebfb5d..78ab874 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/hotplug.d/firmware/11-ath11k-caldata
+@@ -70,7 +70,6 @@ case "$FIRMWARE" in
+ 		label_mac=$(get_mac_binary "/tmp/tp_data/default-mac" 0)
+ 		[ -n "$label_mac" ] && ath11k_patch_mac "$(macaddr_add "$label_mac" -1)" 0
+ 		ath11k_set_macflag
+-		ath11k_remove_regdomain
+ 		;;
+ 	tplink,eap650-outdoor-v1)
+ 		caldata_from_file "/tmp/factory_data/radio" 0 0x20000
+@@ -146,7 +145,6 @@ case "$FIRMWARE" in
+ 		label_mac=$(get_mac_binary "/tmp/tp_data/default-mac" 0)
+ 		[ -n "$label_mac" ] && ath11k_patch_mac "$(macaddr_add "$label_mac" -2)" 0
+ 		ath11k_set_macflag
+-		ath11k_remove_regdomain
+ 		;;
+ 	tplink,archer-ax55-v1)
+ 		caldata_extract "0:ART" 0x26800 0x20000

@@ -4,7 +4,7 @@
 
 Repository https://github.com/john35413/DuinoCoinUSB_ESP8266, development branch `claude/openwrt-archer-ax23-v2-5vtpoe`. Codex started from `a4aa07ec193771eb5aaa69768b6dc099e7a2e2c4` in a clean WSL Ubuntu checkout. Repo root `/home/jfits/DuinoCoinUSB_ESP8266`. Project `/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT`. The Claude cloud path was `/home/user/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT`. All Codex work is under the original project directory and its history. The upstream Sply project is a pinned read-only reference.
 
-The report's containing Git revision can be resolved with `git log -1 --format=%H -- reports/CODEX_HANDOVER.md` from the project. For the actual current branch HEAD and push state use `git rev-parse HEAD` and `git ls-remote origin refs/heads/claude/openwrt-archer-ax23-v2-5vtpoe`. The independently prepared inner firmware source is `adc91ccde8a2f25a00e994fe01485e1fb56e33a2`, based on OpenWrt `98b1185d039344553aaf8270d0661cfad4f0a54d` and Sply `93028b47d291e251dc108de5fbd8bd3f77a9300c`. All three feed pins are in configs/sources.lock.
+The report's containing Git revision can be resolved with `git log -1 --format=%H -- reports/CODEX_HANDOVER.md` from the project. For the actual current branch HEAD and push state use `git rev-parse HEAD` and `git ls-remote origin refs/heads/claude/openwrt-archer-ax23-v2-5vtpoe`. The independently prepared inner firmware source is `6e115a0d02c1c0f236ec98c39375c294c66bb3f1`, based on OpenWrt `98b1185d039344553aaf8270d0661cfad4f0a54d` and Sply `93028b47d291e251dc108de5fbd8bd3f77a9300c`. All three feed pins are in configs/sources.lock.
 
 ## B. Takeover state and artifact provenance
 

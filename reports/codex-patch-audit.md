@@ -4,7 +4,7 @@ Review baseline a4aa07ec193771eb5aaa69768b6dc099e7a2e2c4. The numbered changes a
 
 | Patch | Origin and dependency | Traced effect and regression boundary | Verdict for the AX23 |
 |---|---|---|---|
-| 0001 | Project caldata helper correction, used by the AX23 hotplug hook | Supplies the missing target for the checksum repair after updating the regulatory word. Check explicit and default file paths and adjacent bytes. The hook edits a RAM copy of per-unit ART. | Keep. Correct file handling does not authenticate per-unit calibration or establish permitted TX power. |
+| 0001 | Project caldata helper correction, used by the AX23 hotplug hook | Supplies the missing target for the checksum repair after updating the regulatory word. Check explicit and default file paths and adjacent bytes. The inherited AX23 hook also removed factory regulatory words from a RAM copy of per-unit ART. 0023 preserves them on both AX23 radios. | Keep. Correct file handling does not authenticate per-unit calibration or establish permitted TX power. |
 | 0002 | Low-memory RX backport, amended by 0018 | Followed SRNG setup, RX buffer replenishment, error and monitor paths. Two remaining default constants in dp_tx.c supply the HTT RX buffer size in bytes. Changing them to a ring count would alter a different firmware field. | Keep with 0018. Queue pressure under real traffic is open. |
 | 0003 | Project device-specific ipq-wifi package | Per-radio installation paths match the driver. The prior packer gave any unknown board ID with the same chip ID the same board file. A successful lookup could hide the wrong front end. | High. Require explicit variant-qualified IDs, signed EU payload hashes and absence of board.bin. Test swapped radios and unknown IDs. |
 | 0004 | Project DTS LED mapping | Default triggers refer to PHY enumeration. With the 5 GHz-only profile the first PHY can be phy0. | Low. LEDs are unsuitable for identifying a diagnostic radio. Use its platform-device symlink. |
@@ -26,6 +26,8 @@ Review baseline a4aa07ec193771eb5aaa69768b6dc099e7a2e2c4. The numbered changes a
 ## Additional driver corrections
 
 0019 directs descriptor-bank allocation cleanup to the array passed by the caller. The same allocator serves WBM and monitor descriptors. Freeing the global WBM array after partial monitor allocation can leave live hardware references and unreleased monitor memory. 0022 releases the preallocated WBM idle ring when link setup fails, and frees earlier TX status FIFOs when a later FIFO fails. The latter loop matters for other supported hardware with several TX rings. Neither correction changes ring geometry or assumes that a real AX23 previously hit these paths.
+
+0023 removes only the two AX23 calls to ath11k_remove_regdomain. Original MAC derivation and checksum handling remain in place. The radio-specific hotplug regression checks both ART offsets and that neither branch clears the factory regulatory words. If firmware rejects a factory setting, capture the rejection before any RF change.
 
 ## OEM comparison and practical limits
 
