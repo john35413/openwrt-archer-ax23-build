@@ -29,6 +29,12 @@ MAGIC = b"QCA-ATH11K-BOARD\0"
 IE_BOARD, IE_REGDB = 0, 1
 SUB_NAME, SUB_DATA = 0, 1
 
+# Signed AX23 V2 1.2.1 Build 20261026, EU/00000001.
+EU_PAYLOADS = {
+    36: "35b9f9028e0a50860796c078ba17477bce8f320d06e091fee6d7635cc9ccfc1b",
+    96: "722e3aeed84377436aab8bf3aebe418536311753e1226ed8b4aa4b4c23a8bbd2",
+}
+
 
 def _align4(n):
     return (n + 3) & ~3
@@ -109,7 +115,8 @@ def main(argv=None):
         p.add_argument("--variant", default="")
     p = sp.add_parser("pack"); p.add_argument("out"); p.add_argument("pairs", nargs="+")
     p = sp.add_parser("scoped"); p.add_argument("file")
-    p.add_argument("--stock-board-id", type=int, required=True)
+    p.add_argument("--stock-board-id", type=int, choices=EU_PAYLOADS, required=True)
+    p.add_argument("--eu", action="store_true", help="require the verified EU payload for this radio")
     p.add_argument("--variant", default="TP-Link-Archer-AX23-v2")
     p.add_argument("--bus", default="ahb")
     a = ap.parse_args(argv)
@@ -138,6 +145,9 @@ def main(argv=None):
                 or any(len(data) != 131072 for _, data in boards)
                 or len({data for _, data in boards}) != 1):
             print("FAIL: expected two exact AX23 keys with identical 128 KiB payloads")
+            return 1
+        if a.eu and hashlib.sha256(boards[0][1]).hexdigest() != EU_PAYLOADS[a.stock_board_id]:
+            print("FAIL: payload differs from the verified EU data for this radio")
             return 1
         print("PASS: exact AX23 keys and matching board payloads")
         return 0

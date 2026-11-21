@@ -45,6 +45,9 @@ class Board2Scope(unittest.TestCase):
                         f.flush()
                         rc = board2.main(["scoped", f.name, "--stock-board-id", str(sid)])
                         self.assertEqual(rc == 0, valid)
+                        if valid:
+                            self.assertEqual(board2.main(["scoped", f.name, "--stock-board-id",
+                                                          str(sid), "--eu"]), 1)
             entries = board2.parse(board2.pack(exact))
             for bid, variant in [(7, "TP-Link-Archer-AX23-v2"), (sid, "Other"), (255, "")]:
                 self.assertIsNone(board2.lookup(entries, board2.candidate_names("ahb", 0, bid, variant))[0])

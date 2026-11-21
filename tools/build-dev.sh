@@ -208,7 +208,7 @@ s_board_data() {
 			--chip-id 0 --board-id 255 --variant TP-Link-Archer-AX23-v2 | tee /dev/stderr | \
 			grep -q "^MATCH $name\$" || { echo "BOARD-DATA: $f has no exact '$name' entry"; return 1; }
 		python3 -I "$PROJ/tools/bdf/board2.py" scoped "$bd/board-tplink_archer-ax23-v2.$f" \
-			--stock-board-id "$([ "$f" = ipq5018 ] && echo 36 || echo 96)" || {
+			--eu --stock-board-id "$([ "$f" = ipq5018 ] && echo 36 || echo 96)" || {
 			echo "Regenerate board data with tools/bdf/board-data-from-tplink-firmware.sh"
 			return 1
 		}
