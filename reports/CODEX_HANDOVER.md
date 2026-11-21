@@ -4,7 +4,7 @@
 
 Repository https://github.com/john35413/DuinoCoinUSB_ESP8266, development branch `claude/openwrt-archer-ax23-v2-5vtpoe`. Codex started from `a4aa07ec193771eb5aaa69768b6dc099e7a2e2c4` in a clean WSL Ubuntu checkout. Repo root `/home/jfits/DuinoCoinUSB_ESP8266`. Project `/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT`. The Claude cloud path was `/home/user/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT`. All Codex work is under the original project directory and its history. The upstream Sply project is a pinned read-only reference.
 
-The report's containing Git revision can be resolved with `git log -1 --format=%H -- reports/CODEX_HANDOVER.md` from the project. For the actual current branch HEAD and push state use `git rev-parse HEAD` and `git ls-remote origin refs/heads/claude/openwrt-archer-ax23-v2-5vtpoe`. The independently prepared inner firmware source is `6e115a0d02c1c0f236ec98c39375c294c66bb3f1`, based on OpenWrt `98b1185d039344553aaf8270d0661cfad4f0a54d` and Sply `93028b47d291e251dc108de5fbd8bd3f77a9300c`. All three feed pins are in configs/sources.lock.
+The report's containing Git revision can be resolved with `git log -1 --format=%H -- reports/CODEX_HANDOVER.md` from the project. For the actual current branch HEAD and push state use `git rev-parse HEAD` and `git ls-remote origin refs/heads/claude/openwrt-archer-ax23-v2-5vtpoe`. The independently prepared inner firmware source is `51c98b855482e5e577369206e82f12c628a20940`, based on OpenWrt `98b1185d039344553aaf8270d0661cfad4f0a54d` and Sply `93028b47d291e251dc108de5fbd8bd3f77a9300c`. All three feed pins are in configs/sources.lock.
 
 ## B. Takeover state and artifact provenance
 
@@ -23,6 +23,10 @@ The full per-patch and cross-device analysis is in [codex-patch-audit.md](codex-
 | ac87fa3, e6ed77f, 004d13b | FIT selector, extracted DT/kernel, embedded initramfs and tests | High validation impact. Establishes actual boot payload and compares the selected kernel's embedded modules and hooks against staging. |
 | 58640fe, cf753d4 | test selection, result propagation, static AArch64 emulator discovery | Medium validation impact. Records unavailable inputs and supports packaged qemu-user. |
 | 8a2c26e | original patch set, OEM/PCS comparison, MPD binding and memory accounting | Corrects prior assertions about fallback IDs, the entire host DMA budget, and Q6 crash recovery. |
+| 7b0cd09 (0023), c05d9bc | Preserve per-unit regulatory calibration, isolate the synthetic fixture | High RF confidence impact. AX23 reads both ART segments while retaining the factory regulatory words. |
+| 52a970f, a2286b9 | Source-based allocator regression, kernel policy, arm64 effective extent and diagnostics | High validation impact. Checks real driver functions with injected mock allocation failures and reports correct radio profile and MPD observations. |
+| 76e01ee | Simulated UDP echo service | IPv6 datagrams reached the peer but the wildcard listener failed to reply. Separate address-bound listeners passed the same end-to-end test. |
+| 5842a11 (0024/0025) | IPQ5018 clock lifetime and RTL8367S-VB chip/PCS reset timing | Early boot and trunk risks; scoped to the affected compatible or switch family. |
 
 ## D. Reproduction and evidence
 
@@ -32,6 +36,8 @@ Run from the WSL project folder. Private OEM downloads and extracted board-data 
 - `python3 -W ignore -I tests/unit/test_tools.py -v` passed all 15 tests, including negative FIT and board-data cases. `bash tests/unit/test_radio_profile.sh` passed 13 checks against fake sysfs. `python3 -I tests/unit/test_ath11k_rings.py -v` exercises the ring model. `python3 -I tests/static/check_dtb.py logs/dtb-dev.dts` passed on the archived predecessor DTS including the MPD match. These are VERIFIED BY STATIC/BINARY VALIDATION or VERIFIED IN SIMULATION ONLY.
 - `tools/test-dev.sh all` during preparation exposed the unavailable rootfs/VM and lack of permission to create a mount namespace for the caldata fixture. The latter passed using `sudo env PATCHED_CALDATA="$PWD/build/dev/openwrt/package/base-files/files/lib/functions/caldata.sh" bash tests/unit/test_caldata_regdomain.sh`. See `build/regression.log`, `build/test-radio.log`, `build/test-fit-final.log` and `logs/test-*.log`. The archived compiled DTS is separate from the required new FIT validation.
 - Exact backports source and all applicable backports patch directories were replayed under `build/backports-7.2` with the pinned OpenWrt `scripts/patch-kernel.sh`. Log `build/backports-patch.log`. This checks application to the driver's real sources, independently of the outer Git series.
+- After isolating the caldata fixture, `PATH="$PWD/build/bdf-venv/bin:$PATH" tools/test-dev.sh unit` passed all seven suites as the normal WSL user. `python3 -I tests/unit/check_ath11k_cleanup.py build/backports-7.2/drivers/net/wireless/ath/ath11k/dp.c` passed the monitor bank, WBM ring and TX FIFO ownership checks.
+- `sudo bash tests/network/vm-run.sh` passed 33 checks with the reference ruleset, including the repaired IPv6 UDP peer, with one informational offload measurement. VERIFIED IN SIMULATION ONLY. Result files are logs/network/{console.txt,results.tsv}.
 - Fresh independent build: `tools/build-dev.sh --variant dev --jobs 4`. Pipeline log `build/codex-build.log` and active stage logs `logs/dev/08-kernel.log` and `logs/dev/09-world.log`. **Checkpoint: clean build in progress. No independent ITB or checksum at this checkpoint.** Logs for later stages and RAM artifact metadata present in the checkout at takeover refer to an earlier build. A new result requires stages 10 and 11 and a local SHA256 of the actual file.
 
 ## E. Open observations
