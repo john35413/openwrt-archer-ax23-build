@@ -61,6 +61,24 @@ for _ in $(seq 1 30); do R true 2>/dev/null && break; sleep 3; done
 R true && res T02 PASS "SSH to router from LAN (key auth)" || res T02 FAIL "SSH to router"
 R 'uname -a; cat /etc/openwrt_release; free; ip -br link; iw dev; logread | tail -40' >"$OUT/router-state-boot.txt" 2>&1
 
+# S06: the hardware self-diagnostic runs under the image's BusyBox ash and changes nothing
+# (config/overlay/UCI/mounts/modules/links identical before and after; it is not an AX23,
+# so board-specific checks are expected to FAIL/WARN here - only completion and side effects count)
+snapshot() { R 'find /etc /overlay -xdev -type f 2>/dev/null | sort | xargs md5sum 2>/dev/null; uci show 2>/dev/null | md5sum; cat /proc/mounts; lsmod | sort; ip -br link; ip -br addr' 2>/dev/null; }
+sd="$HERE/../hardware/ax23-selfdiag.sh"
+if [ -f "$sd" ]; then
+	snapshot >"$W/sd-pre"
+	R 'sh -s' <"$sd" >"$OUT/selfdiag-twin.txt" 2>"$OUT/selfdiag-twin.err"
+	snapshot >"$W/sd-post"
+	errs=$(grep -ciE "syntax error|not found|can.t|bad (number|substitution)|unexpected" "$OUT/selfdiag-twin.err")
+	sum=$(grep -m1 "^# summary" "$OUT/selfdiag-twin.txt")
+	macs=$(grep -cE "([0-9a-f]{2}:){5}[0-9a-f]{2}" "$OUT/selfdiag-twin.txt")
+	if [ -n "$sum" ] && [ "$errs" -eq 0 ] && [ "$macs" -eq 0 ] && cmp -s "$W/sd-pre" "$W/sd-post"; then
+		res S06 PASS "ax23-selfdiag.sh completes under BusyBox, no side effects, MACs redacted" "$(grep -c . "$OUT/selfdiag-twin.txt") lines; $sum"
+	else res S06 FAIL "selfdiag" "summary='$sum' shell-errors=$errs unredacted-macs=$macs state-changed=$(cmp -s "$W/sd-pre" "$W/sd-post" && echo no || echo yes)"; fi
+fi
+[ "${3:-}" = selfdiag-only ] && { echo "SUMMARY pass=$PASS fail=$FAIL"; [ "$FAIL" -eq 0 ]; exit $?; }
+
 b=$(R 'ls /sys/class/net/br-lan/brif | sort | tr "\n" " "')
 case "$b" in *lan1*lan2*lan3*lan4*) res T03 PASS "AX23 port names; br-lan members" "$b" ;; *) res T03 FAIL "br-lan members" "$b" ;; esac
 for _ in $(seq 1 40); do WANIP=$(R 'ifstatus wan | jsonfilter -e "@[\"ipv4-address\"][0].address"' 2>/dev/null); [ -n "$WANIP" ] && break; sleep 3; done

@@ -45,7 +45,7 @@ else r H11 FAIL "radios registered" "$nphy phys"; fi
 echo "$D" | grep "ath11k" | grep -E "board|bdf|qmi failed|-12" | tail -4 | while read -r x; do r H13 INFO "ath11k board/qmi log" "$x"; done
 for phd in /sys/class/ieee80211/*; do
 	[ -e "$phd" ] || continue; ph=${phd##*/}
-	band=$(iw phy "$ph" info 2>/dev/null | grep -q "2412 MHz" && echo 2.4G || echo 5G)
+	band=$(iw phy "$ph" info 2>/dev/null | grep -qE "2412(\.0)? MHz" && echo 2.4G || echo 5G)
 	r H14 INFO "phy band mapping (LED triggers assume phy0=2.4G)" "$ph=$band"
 done
 r H15 INFO "regulatory" "$(iw reg get 2>/dev/null | grep -m2 country | tr '\n' ' ')"
