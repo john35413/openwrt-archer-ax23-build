@@ -13,3 +13,4 @@ ae0a241842 mac80211: ath11k: smaller TX completion ring in FW memory mode 2
 2a7452018b mac80211: ath11k/ath12k: backport mac_phy_caps stride fix
 1ba526ba15 mac80211: backport ath11k and mac80211 fixes from OpenWrt main
 b7ce415a03 qualcommax: ipq50xx: archer-ax23-v2: make every partition read-only
+9fba1a2620 qualcommax: wcss-sec: don't hold firmware recovery for a coredump
