@@ -46,7 +46,14 @@ and network access to github.com, sources.cdn.openwrt.org, ftp.gnu.org and cdn.k
 ./tools/build-dev.sh --variant dev        # baseline + patches/openwrt/series
 ./tools/build-dev.sh --variant dev --resume   # rebuild without re-staging (keeps kernel stamps)
 ./tools/test-dev.sh                       # static + unit + network simulation
+./tools/build-twin.sh && ./tools/test-dev.sh twin   # full-system digital twin (QEMU)
 ```
+
+**Digital twin** (`reports/digital-twin.md`): the same OpenWrt software, booted in QEMU as an
+aarch64 system with the AX23 port names and two simulated radios (mac80211_hwsim). It runs
+48 end-to-end checks covering wired LAN/WAN/NAT/IPv6, WPA2/WPA3 Wi-Fi on both bands, the guest/IoT
+SSIDs, LuCI, the firewall and reboot recovery. It found two bugs that would have shipped to the real router. It does **not**
+emulate the AX23's chips (radios/firmware, switch, NAND), so it cannot prove the hardware works.
 
 On Windows 11: install WSL2 (`wsl --install -d Ubuntu-24.04`) and keep the project
 **inside** the WSL filesystem (`~/`), not under `/mnt/c`; builds on `/mnt/c` fail
@@ -70,6 +77,7 @@ it is not in this repository. Extract it from your own unit's stock firmware
 | 0004 | DTS: Wi-Fi LED phy mapping, header facts | LEDs were bound to the wrong radios |
 | 0005 | sysupgrade refused on AX23 v2 | it fell through to `default_do_upgrade` |
 | 0006-0009 | upstream UNIPHY fixes incl. PR #26597 (cherry-picked with `-x`) | cold-boot 2.5G trunk training race |
+| 0010 | wifi-scripts: another radio's `00` country no longer breaks hostapd | found by the digital twin: no AP started |
 
 ## Pinned sources
 

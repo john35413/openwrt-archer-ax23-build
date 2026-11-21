@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-or-later
-# ./tools/test-dev.sh [static|unit|network|all]   (default: all)
+# ./tools/test-dev.sh [static|unit|network|all|twin]   (default: all; twin is opt-in)
 # Writes logs/test-<suite>.log and a combined reports/test-summary.tsv.
 # None of these suites touches a router. "network" is a SIMULATION.
 set -u
@@ -27,4 +27,5 @@ case "$SUITE" in network|all)
 	else
 		run network-sim tests/network/vm-run.sh
 	fi ;; esac
+case "$SUITE" in twin) run twin tests/twin/run-twin.sh ;; esac	# opt-in: ~25 min, needs ./tools/build-twin.sh
 echo; column -t "$SUM"; [ $total_fail -eq 0 ]

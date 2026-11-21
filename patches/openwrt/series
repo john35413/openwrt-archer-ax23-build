@@ -7,3 +7,4 @@
 0007-qualcommax-pcs-qca-uniphy-re-resolve-the-link-on-a-U.patch
 0008-qualcommax-pcs-qca-uniphy-fix-macro-and-clock-callba.patch
 0009-qualcommax-ipq50xx-program-the-UNIPHY-at-gmac-probe.patch
+0010-wifi-scripts-do-not-let-another-radio-s-00-country-b.patch

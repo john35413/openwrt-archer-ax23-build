@@ -4,7 +4,7 @@
 # Reproducible build pipeline for the TP-Link Archer AX23 v2 (IPQ5018) OpenWrt
 # development images.
 #
-#   ./tools/build-dev.sh [--variant baseline|dev] [--jobs N] [--seed-from DIR]
+#   ./tools/build-dev.sh [--variant baseline|dev] [--jobs N] [--resume]
 #                        [--stage-only] [--no-feeds-luci]
 #
 # Variants
@@ -221,21 +221,6 @@ s_config() {
 	cat "$LOGDIR/diffconfig.final"
 }
 
-# ---------------------------------------------------------------- seed
-s_seed() {
-	# Optional: reuse host tools + toolchain from another build tree with the
-	# same OpenWrt SHA to save ~1h. Only directories keyed by toolchain/host.
-	local src="$1/openwrt" d
-	[ "$(git -C "$src" rev-parse "$OPENWRT_SHA")" = "$OPENWRT_SHA" ]
-	for d in staging_dir/host staging_dir/hostpkg build_dir/host build_dir/hostpkg; do
-		[ -d "$src/$d" ] && { mkdir -p "$OWRT/$(dirname $d)"; rsync -a "$src/$d/" "$OWRT/$d/"; }
-	done
-	for d in "$src"/staging_dir/toolchain-* "$src"/build_dir/toolchain-*; do
-		[ -d "$d" ] && rsync -a "$d/" "$OWRT/${d#$src/}/"
-	done
-	echo seeded
-}
-
 # ---------------------------------------------------------------- 08/09 build
 s_kernel() {
 	cd "$OWRT"
@@ -306,7 +291,7 @@ else
 	run_stage 07 config s_config
 fi
 [ "$STAGE_ONLY" = 1 ] && { say "stage-only requested; stopping before compile"; exit 0; }
-[ -n "$SEED_FROM" ] && run_stage 07b seed s_seed "$SEED_FROM"
+[ -n "$SEED_FROM" ] && die "--seed-from was removed: build_dir/host holds absolute paths of its own tree, so seeding is unsafe"
 run_stage 08 kernel s_kernel
 run_stage 09 world s_world
 run_stage 10 validate s_validate

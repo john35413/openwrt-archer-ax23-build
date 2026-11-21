@@ -27,11 +27,14 @@ set dhcp.guest.interface='guest'
 set dhcp.guest.start='100'
 set dhcp.guest.limit='100'
 set dhcp.guest.leasetime='1h'
+# required: this OpenWrt defaults a dhcp section to dhcpv4 'disabled'
+set dhcp.guest.dhcpv4='server'
 set dhcp.iot=dhcp
 set dhcp.iot.interface='iot'
 set dhcp.iot.start='100'
 set dhcp.iot.limit='100'
 set dhcp.iot.leasetime='12h'
+set dhcp.iot.dhcpv4='server'
 
 # zones: guest -> Internet only; iot -> no Internet, LAN may reach iot
 set firewall.guest=zone

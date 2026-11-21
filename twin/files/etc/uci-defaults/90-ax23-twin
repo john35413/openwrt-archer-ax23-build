@@ -1,0 +1,10 @@
+#!/bin/sh
+# AX23 twin first boot: network and wireless come from /etc/config (shipped
+# in the image, so there is no race with wifi auto-detect). Only the shipped
+# guest/IoT profile is applied here, as a user would apply it.
+[ -f /etc/ax23/10-guest-iot-networks.uci ] && uci batch < /etc/ax23/10-guest-iot-networks.uci
+uci set wireless.guest_2g.key='twin-test-guest'
+uci set wireless.iot_2g.key='twin-test-iot'
+uci set system.@system[0].hostname='AX23-twin'
+uci commit
+exit 0

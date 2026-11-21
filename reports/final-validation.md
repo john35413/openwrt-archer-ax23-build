@@ -6,7 +6,7 @@ connected, flashed or modified.**
 Evidence kinds: **SRC** source inspection · **STATIC** static/offline test ·
 **SIM** simulation (namespaces in a VM / qemu-user) · **HW-3P** third-party
 hardware logs on an *AX21 v5 (US) running AX23 v2 firmware* (not an EU AX23 v2) ·
-**HW** our own hardware test (none).
+**HW** our own hardware test (none) · **TWIN** full-system digital twin: the same OpenWrt software booted in QEMU with simulated radios (`reports/digital-twin.md`, 48/48 PASS in two consecutive runs). TWIN never exercises the AX23 chips.
 
 ## Deliverable
 
@@ -19,22 +19,22 @@ The checksums and BUILDINFO are committed. Everything in `artifacts/experimental
 
 | Component | Status (our dev build) | Evidence |
 |---|---|---|
-| Linux boot | NOT HARDWARE TESTED | STATIC: FIT/DTB/load-address validation (`reports/artifacts-dev.txt`). HW-3P: same kernel/DTS family boots via TFTP (v0.2-v0.5) |
+| Linux boot | NOT HARDWARE TESTED | STATIC: FIT/DTB/load-address validation (`reports/artifacts-dev.txt`). HW-3P: same kernel/DTS family boots via TFTP (v0.2-v0.5). TWIN: userspace boots, reboot recovery S05 |
 | Ethernet switch | NOT HARDWARE TESTED | HW-3P: RTL8367S-VB probe, 2.5G trunk, 5/5 boots (v0.5-test). SRC: 777 v7 + UNIPHY fix #26597 |
 | LAN ports | NOT HARDWARE TESTED | HW-3P: lan1-4 forwarding (v0.3). STATIC: the image's board.d produces lan1-4→br-lan |
-| WAN | NOT HARDWARE TESTED | HW-3P: 1G link, DHCP, external ping. SIM N01 |
-| NAT | NOT HARDWARE TESTED | HW-3P: client browsing + 445/100 Mbit/s speedtest (v0.5-test). SIM N09-N13 PASS |
-| DHCP/DNS | NOT HARDWARE TESTED | HW-3P: client DHCP via router. SIM N03-N06, N17 PASS |
-| Wi-Fi 2.4 GHz | **BLOCKED** | root cause found (no board data; SRC + HW-3P logs). Fix packaged; needs board data extracted from the unit's own stock firmware |
-| Wi-Fi 5 GHz | **BLOCKED** | as above |
-| WPA2/WPA3 | NOT TESTED (BLOCKED by Wi-Fi) | — |
-| VLAN | NOT HARDWARE TESTED | SIM N03-N05, N14-N22 PASS (Linux bridge VLAN, not the switch VLAN table) |
-| Firewall | NOT HARDWARE TESTED | SIM: the image's own fw4 ruleset, N14-N29 PASS |
+| WAN | NOT HARDWARE TESTED | HW-3P: 1G link, DHCP, external ping. SIM N01. TWIN T04-T06 (DHCP, IPv6) |
+| NAT | NOT HARDWARE TESTED | HW-3P: client browsing + 445/100 Mbit/s speedtest (v0.5-test). SIM N09-N13 PASS. TWIN T11-T15 |
+| DHCP/DNS | NOT HARDWARE TESTED | HW-3P: client DHCP via router. SIM N03-N06, N17. TWIN T08/T09, W05/W06/W20/W24 |
+| Wi-Fi 2.4 GHz | **BLOCKED** (hardware) | root cause found (no board data; SRC + HW-3P logs); fix packaged; needs the unit's own board data. TWIN: the configuration above the driver works (AP, WPA2, HE, DHCP, Internet, Wi-Fi↔LAN) |
+| Wi-Fi 5 GHz | **BLOCKED** (hardware) | as above. TWIN: HE80 ch 36, WPA3-SAE/PMF, 20/20 reconnects |
+| WPA2/WPA3 | NOT HARDWARE TESTED | TWIN W05-W08, W17-W19: WPA2-PSK and WPA3-SAE work; wrong password and WPA2-on-SAE-only correctly rejected |
+| VLAN | NOT HARDWARE TESTED | SIM N03-N05, N14-N22 (Linux bridge VLAN, not the switch VLAN table). TWIN W20-W26: guest/IoT SSIDs and isolation |
+| Firewall | NOT HARDWARE TESTED | SIM: the image's own fw4 ruleset, N14-N29. TWIN T17/T18, W22/W23/W25 |
 | VPN (WireGuard) | NOT TESTED | optional package list only |
 | A/B boot | NOT TESTED | SRC: `tp_boot_idx` design; HW-3P: U-Boot env has a bad CRC → hazard documented |
 | NAND installation | **BLOCKED** | no validated env size/bootcmd; sysupgrade interlocked (STATIC) |
 | Recovery | **BLOCKED** (for us) | HW-3P: UART + TFTP RAM boot works; we have no 1.8 V UART adapter |
-| Long-term stability | NOT TESTED | soak scripts ready (`tests/hardware/soak-monitor.sh`) |
+| Long-term stability | NOT HARDWARE TESTED | TWIN S04: 3 min mixed load only; 24/48 h soak scripts ready (`tests/hardware/soak-monitor.sh`) |
 
 No hardware-dependent item is marked PASS.
 
@@ -72,12 +72,16 @@ has no Wi-Fi yet, and needs a UART cable to start.
 4. Wi-Fi LED phy mapping reversed in the DTS.
 5. sysupgrade interlock: the board previously fell through to `default_do_upgrade`.
 6. Upstream UNIPHY cold-boot trunk fix #26597 plus its three prerequisites.
-Also corrected in the build process: the 777 patch placement and the root-user configure issue.
+7. **wifi-scripts bug (found by the digital twin, dev patch 0010):** one radio left at country `00` made hostapd reject every AP's config, so no AP started.
+8. **Guest/IoT profile bug (found by the digital twin):** the profile lacked `dhcpv4 'server'`, so guest/IoT clients would have received no DHCP lease on the real router.
+Also corrected in the build process: the 777 patch placement, the root-user configure issue, and unsafe host-tool seeding between build trees (removed; the dev image was rebuilt from scratch).
 
 ## Tests actually executed
 
 Static checks, 4 unit suites, fw4/board.d under qemu-user, 33 network-namespace tests in a VM,
-and artifact validation of both builds. See `simulation-results.md`. **Zero hardware tests.**
+artifact validation of both builds, and the **digital twin**: 48 end-to-end checks, 48/48 PASS in two
+consecutive runs after the bugs above were fixed. See `simulation-results.md` and `digital-twin.md`.
+**Zero hardware tests.**
 
 ## Next blocking problem
 

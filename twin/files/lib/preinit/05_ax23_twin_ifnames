@@ -1,0 +1,19 @@
+# AX23 twin: give the virtio NICs the AX23 DSA port names, by fixed MAC
+# (assigned by tests/twin/run-twin.sh): ...:00:00 wan, ...:00:01-04 lan1-4.
+ax23_twin_ifnames() {
+	local d m n
+	for d in /sys/class/net/eth*; do
+		[ -e "$d" ] || continue
+		m=$(cat "$d/address")
+		case "$m" in
+		52:54:00:23:00:00) n=wan ;;
+		52:54:00:23:00:01) n=lan1 ;;
+		52:54:00:23:00:02) n=lan2 ;;
+		52:54:00:23:00:03) n=lan3 ;;
+		52:54:00:23:00:04) n=lan4 ;;
+		*) continue ;;
+		esac
+		ip link set "${d##*/}" name "$n"
+	done
+}
+boot_hook_add preinit_main ax23_twin_ifnames

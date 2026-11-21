@@ -11,3 +11,4 @@
 __pycache__/
 *.pyc
 /logs/network/.vm-entry.sh
+/logs/twin/.helper-entry.sh

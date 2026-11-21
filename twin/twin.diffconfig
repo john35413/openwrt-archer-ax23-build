@@ -1,0 +1,23 @@
+# AX23 v2 "digital twin": same OpenWrt SHA, feeds and dev patch series as the
+# AX23 dev image, built for the QEMU-bootable armsr/armv8 (aarch64) target.
+# Only the hardware layer differs (virtio NICs instead of IPQ5018+RTL8367S-VB,
+# mac80211_hwsim instead of ath11k IPQ5018/QCN6122).
+CONFIG_TARGET_armsr=y
+CONFIG_TARGET_armsr_armv8=y
+CONFIG_TARGET_armsr_armv8_DEVICE_generic=y
+CONFIG_TARGET_ROOTFS_INITRAMFS=y
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_kmod-mac80211-hwsim=y
+# full wpad: hostapd + wpa_supplicant with SAE (WPA3), 802.11ax
+CONFIG_PACKAGE_wpad-basic-mbedtls=n
+CONFIG_PACKAGE_wpad-mbedtls=y
+CONFIG_PACKAGE_iw=y
+CONFIG_PACKAGE_ip-full=y
+CONFIG_PACKAGE_iperf3=y
+CONFIG_PACKAGE_ethtool=y
+CONFIG_PACKAGE_tcpdump-mini=y
+CONFIG_PACKAGE_hostapd-utils=y
+CONFIG_PACKAGE_wpa-cli=y
+CONFIG_PACKAGE_conntrack=y
+CONFIG_PACKAGE_kmod-sched-cake=y
+CONFIG_PACKAGE_tc-tiny=y
