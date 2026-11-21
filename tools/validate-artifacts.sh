@@ -10,9 +10,6 @@ BIN="$OWRT/bin/targets/qualcommax/ipq50xx"
 DEV=tplink_archer-ax23-v2
 OUT="$PROJ/reports/artifacts-$VARIANT.txt"
 WORK="$PROJ/build/validate-$VARIANT"; rm -rf "$WORK"; mkdir -p "$WORK"
-HOSTBIN="$OWRT/staging_dir/host/bin"
-DUMPIMAGE="$HOSTBIN/dumpimage"; [ -x "$DUMPIMAGE" ] || DUMPIMAGE=$(command -v dumpimage || true)
-[ -n "$DUMPIMAGE" ] || { echo "dumpimage missing (apt install u-boot-tools)"; exit 1; }
 FAILS=0
 r() { printf '%-4s %s\n' "$1" "$2" | tee -a "$OUT"; [ "$1" = FAIL ] && FAILS=$((FAILS+1)); return 0; }
 : >"$OUT"
@@ -21,32 +18,17 @@ echo "# Artifact validation ($VARIANT) $(date -u +%FT%TZ)" | tee -a "$OUT"
 ITB=$(ls "$BIN"/*"$DEV"-initramfs-uImage.itb 2>/dev/null | head -1)
 [ -f "$ITB" ] && r PASS "initramfs FIT present: $(basename "$ITB") ($(stat -c%s "$ITB") bytes)" || { r FAIL "initramfs FIT missing"; exit 1; }
 
-# --- FIT layout
-"$DUMPIMAGE" -l "$ITB" >"$WORK/fit.txt" 2>&1 || true
-grep -q "config@mp02.1" "$WORK/fit.txt" && r PASS "FIT has config@mp02.1 (stock U-Boot selects this)" || r FAIL "FIT lacks config@mp02.1"
-grep -q "Load Address: 0x41000000" "$WORK/fit.txt" && r PASS "kernel load address 0x41000000" || r FAIL "unexpected kernel load address"
-
-# U-Boot loads the FIT at 0x44000000 (stock tftpboot default, seen in UART
-# logs) and decompresses the kernel to 0x41000000. The decompressed image
-# (kernel + embedded initramfs) must end below 0x44000000 or it overwrites
-# the FIT it is being decompressed from.
-IMG=$(ls -d "$OWRT"/build_dir/target-*/linux-qualcommax_ipq50xx/Image-initramfs 2>/dev/null | head -1 || true)
-[ -n "$IMG" ] || IMG=$(ls "$OWRT"/build_dir/target-*/linux-qualcommax_ipq50xx/linux-*/arch/arm64/boot/Image 2>/dev/null | head -1 || true)
-if [ -n "$IMG" ]; then
-	isz=$(stat -c%s "$IMG"); lim=$((0x44000000 - 0x41000000))
-	[ "$isz" -lt "$lim" ] && r PASS "decompressed kernel $isz < $lim bytes (no overlap with FIT at 0x44000000)" \
-		|| r FAIL "decompressed kernel $isz overlaps FIT load address"
-else r FAIL "cannot locate uncompressed kernel image for size check"; fi
-fsz=$(stat -c%s "$ITB"); [ "$fsz" -lt $((0x4b000000 - 0x44000000)) ] && r PASS "FIT ends below Q6 reserved region 0x4b000000" || r FAIL "FIT reaches Q6 region"
-
-# --- embedded DTB
-n=$(awk '/Image [0-9]+ \(fdt/{gsub(/[^0-9]/,"",$2); print $2; exit}' "$WORK/fit.txt")
-if [ -n "$n" ] && "$DUMPIMAGE" -T flat_dt -p "$n" -o "$WORK/board.dtb" "$ITB" >/dev/null 2>&1; then
-	dtc -q -I dtb -O dts -o "$WORK/board.dts" "$WORK/board.dtb"
-	r PASS "extracted DTB from FIT image $n"
-	python3 -I "$PROJ/tests/static/check_dtb.py" "$WORK/board.dts" >"$WORK/dtb-checks.txt" || true
-	while read -r st rest; do r "$st" "dtb: $rest"; done <"$WORK/dtb-checks.txt"
-else r FAIL "could not extract DTB from FIT"; fi
+# Check the bytes U-Boot will select (including hashes and kernel extent).
+if python3 -I "$PROJ/tools/fit-verify.py" "$ITB" --config config@mp02.1 --ram-boot-dtb "$WORK/board.dtb" >"$WORK/fit.txt"; then
+    r PASS "FIT hashes, default config, kernel addresses and decompressed extent"
+    dtc -q -I dtb -O dts -o "$WORK/board.dts" "$WORK/board.dtb"
+    if ! python3 -I "$PROJ/tests/static/check_dtb.py" "$WORK/board.dts" >"$WORK/dtb-checks.txt"; then
+        r FAIL "selected DTB failed validation"
+    fi
+    while read -r st rest; do r "$st" "dtb: $rest"; done <"$WORK/dtb-checks.txt"
+else
+    r FAIL "FIT validation failed (see $WORK/fit.txt)"
+fi
 
 # --- root filesystem contents (initramfs is built from this tree)
 ROOT=$(ls -d "$OWRT"/build_dir/target-*/root-qualcommax 2>/dev/null | head -1 || true)

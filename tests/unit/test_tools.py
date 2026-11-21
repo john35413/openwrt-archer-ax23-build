@@ -3,6 +3,10 @@
 """Unit tests for the project's offline tools (synthetic data only)."""
 import binascii
 import importlib.util
+import hashlib
+import lzma
+from pathlib import Path
+import shutil
 import os
 import struct
 import subprocess
@@ -120,6 +124,36 @@ class UbootEnv(unittest.TestCase):
         env = mkenv(0x20000, {"bootcmd": "bootipq"}, redundant=True)
         res = [r for r in ubootenv.analyse(env) if r["crc_ok"]]
         self.assertEqual(res[0]["layout"], "redundant")
+
+
+@unittest.skipUnless(shutil.which("dtc"), "dtc required for synthetic FIT")
+class FitBootPath(unittest.TestCase):
+    def test_selected_payloads(self):
+        fit = load("fit_verify", "tools/fit-verify.py")
+        with tempfile.TemporaryDirectory() as dirname:
+            d = Path(dirname)
+            def image(name, kind, comp, data, extra=""):
+                (d / name).write_bytes(data)
+                digest = hashlib.sha256(data).hexdigest()
+                return f'{name} {{ type="{kind}"; compression="{comp}"; data=/incbin/("{name}"); {extra} hash {{ algo="sha256"; value=[{digest}]; }}; }};'
+            packed = lzma.compress(b"kernel fixture", format=lzma.FORMAT_ALONE)
+            nodes = image("kernel", "kernel", "lzma", packed,
+                          "load=<0x41000000>; entry=<0x41000000>;")
+            nodes += image("first", "flat_dt", "none", b"unused")
+            nodes += image("board", "flat_dt", "none", b"selected")
+            cfg = "config@mp02.1"
+            for default, dtb, valid in [(cfg, "board", True), ("other", "board", False),
+                                        (cfg, "missing", False), (cfg, "kernel", False)]:
+                dts = f'/dts-v1/; / {{ images {{ {nodes} }}; configurations {{ default="{default}"; {cfg} {{ kernel="kernel"; fdt="{dtb}"; }}; }}; }};'
+                (d / "in.dts").write_text(dts)
+                blob = subprocess.check_output(["dtc", "-q", "-I", "dts", "-O", "dtb", "in.dts"], cwd=d)
+                self.assertTrue(fit.verify(blob, cfg)[0])
+                if valid:
+                    self.assertEqual(fit.ram_boot_dtb(blob, cfg), b"selected")
+                    self.assertFalse(fit.verify(blob.replace(b"selected", b"corrupt!"), cfg)[0])
+                else:
+                    with self.assertRaises((ValueError, KeyError)):
+                        fit.ram_boot_dtb(blob, cfg)
 
 
 class DtbChecker(unittest.TestCase):

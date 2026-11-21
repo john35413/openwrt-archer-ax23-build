@@ -11,7 +11,10 @@ property has at least one hash node and all hashes match, and the requested
 configuration exists. Supports crc32, md5, sha1, sha256, sha384, sha512.
 Offline tool; no device is touched.
 """
+import argparse
 import hashlib
+import lzma
+from pathlib import Path
 import struct
 import sys
 import zlib
@@ -85,13 +88,55 @@ def verify(blob, config=None):
     return ok, out
 
 
+def ram_boot_dtb(blob, config):
+    """Check the default boot path and bound the actual decompressed kernel."""
+    root = parse(blob)["children"]
+    confs = root["configurations"]
+    if confs["props"]["default"] != config.encode() + b"\0":
+        raise ValueError("unexpected default configuration")
+    props = confs["children"][config]["props"]
+    images = root["images"]["children"]
+
+    def selected(role, expected_type):
+        name = props[role].removesuffix(b"\0").decode()
+        image = images[name]["props"]
+        if image["type"] != expected_type:
+            raise ValueError(f"incorrect type for {role}: {name}")
+        return image
+
+    kernel = selected("kernel", b"kernel\0")
+    fdt = selected("fdt", b"flat_dt\0")
+    load = 0x41000000
+    fit_base = 0x44000000
+    if kernel["load"] != struct.pack(">I", load) or kernel["entry"] != kernel["load"]:
+        raise ValueError("unexpected kernel load or entry point")
+    if kernel["compression"] != b"lzma\0" or fdt["compression"] != b"none\0":
+        raise ValueError("unexpected payload compression")
+    limit = fit_base - load
+    decoder = lzma.LZMADecompressor(format=lzma.FORMAT_ALONE, memlimit=128 << 20)
+    image = decoder.decompress(kernel["data"], max_length=limit + 1)
+    if not image or not decoder.eof or len(image) > limit:
+        raise ValueError("truncated kernel or decompression extends into the FIT")
+    if fit_base + len(blob) > 0x4b000000:
+        raise ValueError("FIT overlaps Q6 reservation")
+    return fdt["data"]
+
+
 def main():
-    if len(sys.argv) < 2:
-        print(__doc__); return 2
-    cfg = sys.argv[sys.argv.index("--config") + 1] if "--config" in sys.argv else None
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("image", type=Path)
+    parser.add_argument("--config")
+    parser.add_argument("--ram-boot-dtb", type=Path,
+                        help="check the AX23 RAM layout and extract its selected DTB")
+    args = parser.parse_args()
+    if args.ram_boot_dtb and not args.config:
+        parser.error("--ram-boot-dtb requires --config")
     try:
-        ok, lines = verify(open(sys.argv[1], "rb").read(), cfg)
-    except (ValueError, struct.error, KeyError) as e:
+        blob = args.image.read_bytes()
+        ok, lines = verify(blob, args.config)
+        if ok and args.ram_boot_dtb:
+            args.ram_boot_dtb.write_bytes(ram_boot_dtb(blob, args.config))
+    except (ValueError, IndexError, struct.error, KeyError, lzma.LZMAError) as e:
         print("FAIL %s" % e); return 1
     print("\n".join(lines))
     print("PASS" if ok else "FAIL")
