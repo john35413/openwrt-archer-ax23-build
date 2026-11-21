@@ -6,5 +6,4 @@ unit-mac	PASS	logs/test-unit-mac.log
 unit-bdf-extract	PASS	logs/test-unit-bdf-extract.log
 unit-selfdiag-readonly	PASS	logs/test-unit-selfdiag-readonly.log
 unit-radio-profile	PASS	logs/test-unit-radio-profile.log
-fw4-generate	PASS	logs/test-fw4-generate.log
-network-sim	PASS	logs/test-network-sim.log
+unit-mpd-recovery	PASS	logs/test-unit-mpd-recovery.log
