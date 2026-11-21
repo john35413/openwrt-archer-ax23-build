@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Optional: move physical port lan4 into the IoT network (DSA bridge VLAN 30).
+# Requires a working RTL8367S-VB VLAN table on hardware (NOT yet validated).
+# Keep a wired port on lan1-3 while applying this.
+del_list network.@device[0].ports='lan4'
+set network.iot_dev.ports='lan4'

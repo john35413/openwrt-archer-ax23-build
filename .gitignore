@@ -1,0 +1,13 @@
+# Large/regenerable trees: recreated by tools/build-dev.sh
+/upstream/
+/build/
+# Build outputs are checksummed in reports; binaries are not committed
+/artifacts/**/*.itb
+/artifacts/**/*.ubi
+/artifacts/**/*.bin
+/artifacts/**/*.tar*
+/logs/*.log.full
+/board-data/
+__pycache__/
+*.pyc
+/logs/network/.vm-entry.sh

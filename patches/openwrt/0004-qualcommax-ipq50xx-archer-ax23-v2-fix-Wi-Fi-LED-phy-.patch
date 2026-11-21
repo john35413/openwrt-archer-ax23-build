@@ -1,0 +1,75 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: AX23_V2_OPENWRT <ax23-v2-openwrt@users.noreply.invalid>
+Date: Sat, 21 Nov 2026 07:08:57 +0000
+Subject: [PATCH] qualcommax: ipq50xx: archer-ax23-v2: fix Wi-Fi LED phy
+ mapping
+
+The 5 GHz LED was bound to phy0tpt and the 2.4 GHz LED to phy1tpt, while
+the comment argued that the 2.4 GHz radio registers first. All posted
+boot logs show c000000.wifi (IPQ5018, 2.4 GHz) ahead of b00a040.wifi
+(QCN6122, 5 GHz), so swap them. Still to be confirmed with both radios
+up. Also update the header: the RTL8367S-VB probe has been observed on
+hardware (AX21 v5 running AX23 v2 firmware), no EU unit report exists.
+---
+ .../qualcommax/dts/ipq5018-archer-ax23-v2.dts | 31 ++++++++++---------
+ 1 file changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts b/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts
+index a70f45d68c..b8d916fffe 100644
+--- a/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts
++++ b/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts
+@@ -5,12 +5,14 @@
+  * SoC:    Qualcomm IPQ5018 (IPQ0509), Cortex-A53 dual-core
+  * RAM:    256 MB DDR3 (CDT: AP-MP02.1_128M16_DDR3_LM256)
+  * Flash:  SPI-NAND 128 MB, dual-image (rootfs + rootfs_1)
+- * Switch: Realtek RTL8367 family D (chip ID 0x6642 per qca-ssdk.ko
+- *         analysis; NOT yet read from the physical unit)
++ * Switch: Realtek RTL8367S-VB, family D (chip ID 0x6642). Probed as
++ *         "RTL8367S-VB" by rtl8365mb on an AX21 v5 that runs AX23 v2
++ *         firmware (third-party UART logs, forum t/254876).
+  *         Trunk on GMAC1 -> UNIPHY0 -> CPU port 6, reset GPIO39.
+  *         Trunk mode is HSGMII 2.5G -- see the note above &gmac1.
+- *         Matches the stock running.dts forced-speed and physical
+- *         clock measurement. UNVERIFIED on hardware (no UART yet).
++ *         GPIO33 cannot be an active-low switch reset on that unit: it
++ *         is driven low as the (off) 2.4 GHz LED while the switch works.
++ *         No test on an EU AX23 v2 unit has been reported.
+  * WiFi:   IPQ5018 internal (ath11k) 2.4 GHz
+  *         QCN6102 (qcn6122 fw) 5 GHz via PCIe
+  * UART:   GPIO28 (RX) / GPIO29 (TX), 115200 8N1, 1.8V
+@@ -133,24 +135,25 @@
+ 			gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
+ 		};
+ 
++		/*
++		 * phyN numbering follows ieee80211_register_hw() order. In
++		 * every AX23 v2 boot log posted so far (forum t/254876) the
++		 * IPQ5018 2.4 GHz radio (c000000.wifi) finishes QMI ~0.5 s
++		 * before the QCN6122 (b00a040.wifi), so phy0 = 2.4 GHz and
++		 * phy1 = 5 GHz. The previous mapping (5 GHz on phy0) contradicted
++		 * its own comment. Not yet observed with both radios up:
++		 * confirm with `iw phy` on first boot with board data.
++		 */
+ 		led-wifi-5g {
+ 			label = "white:wlan5g";
+ 			gpios = <&tlmm 11 GPIO_ACTIVE_HIGH>;
+-			linux,default-trigger = "phy0tpt";
++			linux,default-trigger = "phy1tpt";
+ 		};
+ 
+-		/*
+-		 * phy1tpt is inferred, not boot-tested: &wifi (2.4GHz)
+-		 * is registered before &wifi1 (5GHz) in this DTS, and
+-		 * the 5GHz LED above already uses phy0tpt, so phy1 is
+-		 * assumed to map to the 2.4GHz radio by registration
+-		 * order. Confirm against actual phy0/phy1 enumeration
+-		 * on first real boot with both radios up.
+-		 */
+ 		led-wifi-2g {
+ 			label = "white:wlan2g";
+ 			gpios = <&tlmm 33 GPIO_ACTIVE_HIGH>;
+-			linux,default-trigger = "phy1tpt";
++			linux,default-trigger = "phy0tpt";
+ 		};
+ 	};
+ };

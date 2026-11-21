@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Raspberry Pi integration: static lease, local DNS name, ubus/rpc access is
+# configured by tools/pi-integration/setup-router.sh (restricted account).
+# Replace the MAC with your Pi's wired MAC before applying.
+add dhcp host
+set dhcp.@host[-1].name='pi'
+set dhcp.@host[-1].mac='CHANGE-ME-pi-mac'
+set dhcp.@host[-1].ip='192.168.1.2'
+# Pi-hole as upstream resolver for dnsmasq (keeps DHCP on the router)
+del_list dhcp.@dnsmasq[0].server='192.168.1.2'
+add_list dhcp.@dnsmasq[0].server='192.168.1.2'
+set dhcp.@dnsmasq[0].noresolv='1'
+# Syslog to the Pi (nothing exposed to WAN)
+set system.@system[0].log_ip='192.168.1.2'
+set system.@system[0].log_proto='udp'
+set system.@system[0].log_port='514'

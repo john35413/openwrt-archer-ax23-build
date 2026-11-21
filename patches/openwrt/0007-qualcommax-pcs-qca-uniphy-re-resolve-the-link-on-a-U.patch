@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Julius Bairaktaris <julius@bairaktaris.de>
+Date: Mon, 12 Oct 2026 03:13:51 +0200
+Subject: [PATCH] qualcommax: pcs-qca-uniphy: re-resolve the link on a USXGMII
+ rate change
+
+An AQR113C can report its copper link over MDIO before it writes the
+new rate into the USXGMII code word, which carries 10G while the copper
+link is down. phylink reads the speed only when the link comes up, so
+the MAC stays at 10G. On an RT-AX89X with a 1G partner on the AQR113C
+port this happened in 3 of 20 link-ups, and the port passed no traffic.
+
+Report a rate change in the code word as a link drop, so that phylink
+resolves the link again at the new rate. With this change all 20
+link-ups ended at 1G; 9 came up at 10G first and were re-resolved
+within a second.
+
+Fixes: 05c180511dda ("qualcommax: add UNIPHY PCS driver")
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
+Link: https://github.com/openwrt/openwrt/pull/25829
+Signed-off-by: Robert Marko <robimarko@gmail.com>
+(cherry picked from commit 59f295f58fd73b105395b36dc4093458185f7176)
+---
+ .../qualcommax/files/drivers/net/pcs/pcs-qca-uniphy.c | 11 +++++++++++
+ .../files/include/linux/pcs/pcs-qca-uniphy.h          |  2 ++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/target/linux/qualcommax/files/drivers/net/pcs/pcs-qca-uniphy.c b/target/linux/qualcommax/files/drivers/net/pcs/pcs-qca-uniphy.c
+index 91c34c5394..0e8b605353 100644
+--- a/target/linux/qualcommax/files/drivers/net/pcs/pcs-qca-uniphy.c
++++ b/target/linux/qualcommax/files/drivers/net/pcs/pcs-qca-uniphy.c
+@@ -395,6 +395,17 @@ static void qca_uniphy_pcs_get_state_usxgmii(struct qca_uniphy *uniphy,
+ 		return;
+ 	}
+ 
++	/* The PHY can report its link before it writes the new rate into
++	 * the code word, and phylink takes the speed only when the link
++	 * comes up. Report a rate change as a link drop so that phylink
++	 * resolves the link again at the new rate.
++	 */
++	if (state->speed != uniphy->usxgmii_speed) {
++		uniphy->usxgmii_speed = state->speed;
++		state->link = false;
++		return;
++	}
++
+ 	state->duplex = DUPLEX_FULL;
+ }
+ 
+diff --git a/target/linux/qualcommax/files/include/linux/pcs/pcs-qca-uniphy.h b/target/linux/qualcommax/files/include/linux/pcs/pcs-qca-uniphy.h
+index a540416a23..87f5698a89 100644
+--- a/target/linux/qualcommax/files/include/linux/pcs/pcs-qca-uniphy.h
++++ b/target/linux/qualcommax/files/include/linux/pcs/pcs-qca-uniphy.h
+@@ -146,6 +146,8 @@ struct qca_uniphy {
+ 	struct clk_bulk_data *clks;
+ 	int num_clks;
+ 	struct qca_uniphy_pcs port_pcs[QCA_UNIPHY_CHANNELS];
++	/* USXGMII rate the code word carried at the last read */
++	int usxgmii_speed;
+ 	struct qca_uniphy_clk rx_clk;
+ 	struct qca_uniphy_clk tx_clk;
+ 	struct qca_uniphy_clk ref_clk;

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+# ./tools/test-dev.sh [static|unit|network|all]   (default: all)
+# Writes logs/test-<suite>.log and a combined reports/test-summary.tsv.
+# None of these suites touches a router. "network" is a SIMULATION.
+set -u
+PROJ="$(cd "$(dirname "$0")/.." && pwd)"; cd "$PROJ"
+SUITE="${1:-all}"; SUM="$PROJ/reports/test-summary.tsv"; mkdir -p logs reports
+: >"$SUM"; total_fail=0
+run() {	# run name cmd...
+	local n="$1"; shift; echo "== $n"
+	"$@" >"logs/test-$n.log" 2>&1; local rc=$?
+	grep -E "^(PASS|FAIL|SKIP)|^N[0-9]+ |^ok|^FAIL|SUMMARY| ... ok$| ... FAIL| ... ERROR" "logs/test-$n.log" | sed 's/^/   /' | tail -60
+	case $rc in 0) st=PASS ;; 77) st=SKIP ;; *) st=FAIL; total_fail=$((total_fail+1)) ;; esac
+	printf '%s\t%s\t%s\n' "$n" "$st" "logs/test-$n.log" >>"$SUM"; echo "   -> $st"
+}
+case "$SUITE" in static|all) run static tests/static/run-static.sh ;; esac
+case "$SUITE" in unit|all)
+	run unit-python python3 -W ignore -I tests/unit/test_tools.py -v
+	run unit-caldata bash tests/unit/test_caldata_regdomain.sh
+	run unit-mac bash tests/unit/test_mac_derivation.sh
+	run unit-bdf-extract bash tests/unit/test_bdf_extract.sh ;; esac
+case "$SUITE" in network|all) run network-sim tests/network/vm-run.sh ;; esac
+echo; column -t "$SUM"; [ $total_fail -eq 0 ]

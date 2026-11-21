@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Reference ruleset with the structure and default policies of OpenWrt fw4
+# (zones lan/wan + the guest/IoT zones from configs/uci-examples). Used by
+# run-netns-tests.sh when no ruleset generated from the built image is given
+# (see gen-fw4-ruleset.sh). Device names match the router namespace:
+#   br-lan.1 = lan, br-lan.20 = guest, br-lan.30 = iot, wan/wan2 = wan zone
+flush ruleset
+
+table inet fw4 {
+	counter fwd_dropped {
+	}
+	counter lan_fwd {
+	}
+	counter iot_rejected {
+	}
+	counter wan_in_rejected {
+	}
+	counter wan_fwd_rejected {
+	}
+
+	flowtable ft {
+		hook ingress priority filter
+		devices = { wan, wan2, br-lan.1 }
+		counter
+	}
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+		iif "lo" accept comment "!fw4: Accept traffic from loopback"
+		ct state vmap { established : accept, related : accept, invalid : drop }
+		tcp flags syn / fin,syn,rst,ack jump syn_flood
+		iifname "br-lan.1" jump input_lan
+		iifname "br-lan.20" jump input_guest
+		iifname "br-lan.30" jump input_iot
+		iifname { "wan", "wan2" } jump input_wan
+	}
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+		meta l4proto { tcp, udp } flow add @ft
+		ct state vmap { established : accept, related : accept, invalid : drop }
+		iifname "br-lan.1" jump forward_lan
+		iifname "br-lan.20" jump forward_guest
+		iifname "br-lan.30" jump forward_iot
+		iifname { "wan", "wan2" } jump forward_wan
+		counter name fwd_dropped drop
+	}
+	chain output {
+		type filter hook output priority filter; policy accept;
+		oif "lo" accept
+		ct state vmap { established : accept, related : accept }
+	}
+	chain syn_flood {
+		limit rate 25/second burst 50 packets return
+		drop
+	}
+
+	# --- lan: input ACCEPT, forward -> wan, iot
+	chain input_lan {
+		counter accept
+	}
+	chain forward_lan {
+		counter name lan_fwd
+		oifname { "wan", "wan2" } accept
+		oifname "br-lan.30" accept
+		oifname "br-lan.1" accept
+		reject
+	}
+
+	# --- guest: input REJECT except DHCP/DNS, forward -> wan only
+	chain input_guest {
+		meta nfproto ipv4 udp dport 67 accept comment "Allow-DHCP"
+		udp dport 53 accept comment "Allow-DNS"
+		tcp dport 53 accept comment "Allow-DNS"
+		icmp type echo-request accept
+		reject
+	}
+	chain forward_guest {
+		oifname { "wan", "wan2" } accept
+		reject
+	}
+
+	# --- iot: input REJECT except DHCP/DNS, no forwarding at all
+	chain input_iot {
+		meta nfproto ipv4 udp dport 67 accept comment "Allow-DHCP"
+		udp dport 53 accept
+		reject
+	}
+	chain forward_iot {
+		counter name iot_rejected reject
+	}
+
+	# --- wan: input/forward REJECT, fw4 default allow-rules
+	chain input_wan {
+		meta nfproto ipv4 udp dport 68 accept comment "!fw4: Allow-DHCP-Renew"
+		icmp type echo-request accept comment "!fw4: Allow-Ping"
+		meta nfproto ipv6 udp dport 546 accept comment "!fw4: Allow-DHCPv6"
+		icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert, nd-router-advert, echo-request } accept
+		counter name wan_in_rejected reject
+	}
+	chain forward_wan {
+		icmpv6 type { echo-request, echo-reply, destination-unreachable, packet-too-big, time-exceeded, parameter-problem } limit rate 1000/second accept comment "!fw4: Allow-ICMPv6-Forward"
+		counter name wan_fwd_rejected reject
+	}
+
+	chain srcnat {
+		type nat hook postrouting priority srcnat; policy accept;
+		meta nfproto ipv4 oifname { "wan", "wan2" } masquerade comment "!fw4: Masquerade wan"
+	}
+	chain mangle_forward {
+		type filter hook forward priority mangle; policy accept;
+		oifname { "wan", "wan2" } tcp flags syn tcp option maxseg size set rt mtu
+	}
+}

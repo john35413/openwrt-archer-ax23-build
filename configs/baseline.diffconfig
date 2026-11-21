@@ -1,0 +1,6 @@
+# Reproduction of the upstream AX23 v2 project build exactly as documented in
+# its docs/BUILD.md (device profile + initramfs, everything else default).
+CONFIG_TARGET_qualcommax=y
+CONFIG_TARGET_qualcommax_ipq50xx=y
+CONFIG_TARGET_qualcommax_ipq50xx_DEVICE_tplink_archer-ax23-v2=y
+CONFIG_TARGET_ROOTFS_INITRAMFS=y

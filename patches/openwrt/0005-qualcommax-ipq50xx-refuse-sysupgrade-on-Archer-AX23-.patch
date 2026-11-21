@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: AX23_V2_OPENWRT <ax23-v2-openwrt@users.noreply.invalid>
+Date: Sat, 21 Nov 2026 07:09:13 +0000
+Subject: [PATCH] qualcommax: ipq50xx: refuse sysupgrade on Archer AX23 v2
+
+The board has no case in platform_do_upgrade, so sysupgrade fell through
+to default_do_upgrade() while platform_check_image() accepted any image.
+Refuse in both places (so -F does not bypass it) until a dual-slot
+tp_boot_idx install path is validated on hardware. Refusal happens
+before any flash access.
+---
+ .../base-files/lib/upgrade/platform.sh        | 20 +++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh b/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
+index 60fe61218f..fbdd5bd0bd 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
++++ b/target/linux/qualcommax/ipq50xx/base-files/lib/upgrade/platform.sh
+@@ -165,7 +165,25 @@ linksys_mx_pre_upgrade() {
+ 	fi
+ }
+ 
++# Boards whose NAND install path has not been validated on hardware.
++# sysupgrade must never touch their flash, even with -F.
++platform_upgrade_blocked() {
++	case "$(board_name)" in
++	tplink,archer-ax23-v2)
++		# Dual-slot (rootfs/rootfs_1) TP-Link layout. The tp_boot_idx
++		# switch, the U-Boot environment size and the stock env CRC
++		# state (a bad-CRC env was observed in the field) are not
++		# validated for this board. See AX23_V2_OPENWRT
++		# reports/nand-boot-safety.md.
++		echo "sysupgrade is disabled on $(board_name): NAND installation is not validated" >&2
++		return 0
++		;;
++	esac
++	return 1
++}
++
+ platform_check_image() {
++	platform_upgrade_blocked && return 1
+ 	return 0;
+ }
+ 
+@@ -178,6 +196,8 @@ platform_pre_upgrade() {
+ }
+ 
+ platform_do_upgrade() {
++	platform_upgrade_blocked && return 1
++
+ 	case "$(board_name)" in
+ 	cmcc,mr3000d-ci|\
+ 	cmcc,pz-l8|\

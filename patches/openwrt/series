@@ -1,0 +1,9 @@
+0001-base-files-caldata-fix-ath11k_remove_regdomain-witho.patch
+0002-mac80211-ath11k-smaller-host-RX-rings-in-FW-memory-m.patch
+0003-qualcommax-ipq50xx-add-board-data-package-for-Archer.patch
+0004-qualcommax-ipq50xx-archer-ax23-v2-fix-Wi-Fi-LED-phy-.patch
+0005-qualcommax-ipq50xx-refuse-sysupgrade-on-Archer-AX23-.patch
+0006-qualcommax-pcs-qca-uniphy-clear-the-mode-select-for-.patch
+0007-qualcommax-pcs-qca-uniphy-re-resolve-the-link-on-a-U.patch
+0008-qualcommax-pcs-qca-uniphy-fix-macro-and-clock-callba.patch
+0009-qualcommax-ipq50xx-program-the-UNIPHY-at-gmac-probe.patch

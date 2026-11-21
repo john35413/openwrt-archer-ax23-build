@@ -1,0 +1,13 @@
+# Optional packages: NOT built into the core image. Install with apk/opkg
+# after the base system is validated on hardware, one group at a time, while
+# watching `free -m` (256 MB RAM budget).
+# --- VPN
+wireguard-tools luci-proto-wireguard
+# --- QoS (CAKE). Measure CPU usage at line rate before keeping it enabled.
+sqm-scripts luci-app-sqm
+# --- Statistics (lightweight; export to the Raspberry Pi instead of storing locally)
+luci-app-statistics collectd-mod-interface collectd-mod-network collectd-mod-cpu collectd-mod-memory collectd-mod-thermal
+# --- Multi-WAN
+mwan3 luci-app-mwan3
+# --- Pi integration (restricted rpcd/ubus account; see tools/pi-integration/)
+rpcd-mod-file

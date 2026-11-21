@@ -1,0 +1,14 @@
+#!/bin/sh
+# Minimal udhcpc hook for the netns tests (no /etc/resolv.conf writes).
+# METRIC env var sets the default route metric. Lease details go to
+# $LEASE_DIR/<iface>.lease for the test harness.
+case "$1" in
+deconfig) ip -4 addr flush dev "$interface"; ip link set "$interface" up ;;
+bound|renew)
+	ip -4 addr flush dev "$interface"
+	ip addr add "$ip/${mask:-24}" dev "$interface"
+	[ -n "$router" ] && ip route replace default via "${router%% *}" dev "$interface" metric "${METRIC:-0}"
+	{ echo "ip=$ip"; echo "router=$router"; echo "dns=$dns"; echo "lease=$lease"; } > "$LEASE_DIR/$interface.lease"
+	;;
+esac
+exit 0

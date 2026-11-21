@@ -1,0 +1,9 @@
+0c08073a62 qualcommax: ipq50xx: program the UNIPHY at gmac probe
+17d4b46a9e qualcommax: pcs-qca-uniphy: fix macro and clock callback slips
+8624d2f39f qualcommax: pcs-qca-uniphy: re-resolve the link on a USXGMII rate change
+07a08d0352 qualcommax: pcs: qca-uniphy: clear the mode select for SGMII on UNIPHY0
+cfd8a08c4a qualcommax: ipq50xx: refuse sysupgrade on Archer AX23 v2
+56fd63f4b3 qualcommax: ipq50xx: archer-ax23-v2: fix Wi-Fi LED phy mapping
+1459b709c4 qualcommax: ipq50xx: add board-data package for Archer AX23 v2
+ae641bfc02 mac80211: ath11k: smaller host RX rings in FW memory mode 2
+391705b2e7 base-files: caldata: fix ath11k_remove_regdomain without target

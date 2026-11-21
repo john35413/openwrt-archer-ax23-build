@@ -1,0 +1,88 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Julius Bairaktaris <julius@bairaktaris.de>
+Date: Thu, 22 Oct 2026 04:41:19 +0200
+Subject: [PATCH] qualcommax: pcs-qca-uniphy: fix macro and clock callback
+ slips
+
+to_qca_uniphy_pcs() ignored its argument and ended in a semicolon, the
+port clock index macros lacked outer parentheses, the reference clock's
+init fields were chained with commas, and recalc_rate returned -EINVAL as
+a rate for an unknown UNIPHY. Use the argument, parenthesise the macros,
+end the statements and report a rate of 0. Drop the unused rst_ahb.
+
+Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
+Link: https://github.com/openwrt/openwrt/pull/24806
+Signed-off-by: Robert Marko <robimarko@gmail.com>
+(cherry picked from commit 62792fff96994a03981098b80d62c6c6cdeec06f)
+---
+ .../files/drivers/net/pcs/pcs-qca-uniphy.c         | 14 +++++---------
+ .../files/include/linux/pcs/pcs-qca-uniphy.h       |  7 +++----
+ 2 files changed, 8 insertions(+), 13 deletions(-)
+
+diff --git a/target/linux/qualcommax/files/drivers/net/pcs/pcs-qca-uniphy.c b/target/linux/qualcommax/files/drivers/net/pcs/pcs-qca-uniphy.c
+index 0e8b605353..5615ef68ef 100644
+--- a/target/linux/qualcommax/files/drivers/net/pcs/pcs-qca-uniphy.c
++++ b/target/linux/qualcommax/files/drivers/net/pcs/pcs-qca-uniphy.c
+@@ -161,14 +161,10 @@ qca_uniphy_refclk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+ 		regmap_read(uniphy->regmap, IPQ5018_UNIPHY_REFCLK, &val);
+ 		if (val & IPQ5018_UNIPHY_REFCLK_DIV)
+ 			return UNIPHY_REFCLK_25MHZ;
+-		else
+-			return UNIPHY_REFCLK_50MHZ;
+-		break;
++		return UNIPHY_REFCLK_50MHZ;
+ 	default:
+-		return -EINVAL;
++		return 0;
+ 	}
+-
+-	return 0;
+ }
+ 
+ static int
+@@ -212,12 +208,12 @@ static int qca_uniphy_refclk_register(struct qca_uniphy *uniphy,
+ 	struct clk_parent_data pdata = { .fw_name = "ref" };
+ 	struct clk_init_data init = {};
+ 
+-	init.name = name,
++	init.name = name;
+ 	init.parent_data = &pdata;
+ 	init.num_parents = 1;
+-	init.ops = &qca_uniphy_refclk_ops,
++	init.ops = &qca_uniphy_refclk_ops;
+ 	/* always derive rate from the UNIPHY register */
+-	init.flags = CLK_GET_RATE_NOCACHE,
++	init.flags = CLK_GET_RATE_NOCACHE;
+ 
+ 	uniphy->ref_clk.hw.init = &init;
+ 	uniphy->ref_clk.uniphy = uniphy;
+diff --git a/target/linux/qualcommax/files/include/linux/pcs/pcs-qca-uniphy.h b/target/linux/qualcommax/files/include/linux/pcs/pcs-qca-uniphy.h
+index 87f5698a89..d0e8f3baf0 100644
+--- a/target/linux/qualcommax/files/include/linux/pcs/pcs-qca-uniphy.h
++++ b/target/linux/qualcommax/files/include/linux/pcs/pcs-qca-uniphy.h
+@@ -134,13 +134,12 @@ struct qca_uniphy_match_data {
+ 	bool ref_clk_enable;
+ };
+ 
+-#define to_qca_uniphy_pcs(n) container_of(pcs, struct qca_uniphy_pcs, pcs);
++#define to_qca_uniphy_pcs(n) container_of(n, struct qca_uniphy_pcs, pcs)
+ 
+ struct qca_uniphy {
+ 	struct device *dev;
+ 	void __iomem *base;
+ 	struct regmap *regmap;
+-	struct reset_control *rst_ahb;
+ 	struct reset_control *rst_soft;
+ 	struct reset_control *rst_xpcs;
+ 	struct clk_bulk_data *clks;
+@@ -157,8 +156,8 @@ struct qca_uniphy {
+ 	phy_interface_t interface;
+ };
+ 
+-#define port_rx_clk_idx(upcs)	((upcs)->channel * 2) + 2
+-#define port_tx_clk_idx(upcs)	(((upcs)->channel * 2) + 1) + 2
++#define port_rx_clk_idx(upcs)	((upcs)->channel * 2 + 2)
++#define port_tx_clk_idx(upcs)	((upcs)->channel * 2 + 3)
+ /* The pair is adjacent, so the bulk ops can take it from the rx index */
+ #define QCA_UNIPHY_PORT_CLKS	2
+ 
