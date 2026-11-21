@@ -131,6 +131,9 @@ def main():
     if "wifi@c000000" in radios:
         check("ipq5018 bdf-addr", cells(prop(radios["wifi@c000000"], "qcom,bdf-addr") or "") == [0x4c400000])
 
+    mpd = list(nodes(text, r"remoteproc@cd00000"))
+    check("IPQ5018 Q6 uses the MPD remoteproc driver", len(mpd) == 1 and
+          prop(mpd[0][1], "compatible") == '"qcom,ipq5018-q6-mpd"')
     q6 = [cells(prop(b, "reg") or "") for n, b in nodes(text, r"(?:q6|wcss)[-_a-z0-9]*@4b000000")]
     check("q6 region 0x4b000000+0x3000000 (covers bdf/m3 addrs)",
           any(c in ([0x4b000000, 0x3000000], [0, 0x4b000000, 0, 0x3000000]) for c in q6), str(q6))

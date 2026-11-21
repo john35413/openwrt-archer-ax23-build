@@ -88,7 +88,7 @@ def verify(blob, config=None):
     return ok, out
 
 
-def ram_boot_dtb(blob, config):
+def ram_boot_payloads(blob, config):
     """Check the default boot path and bound the actual decompressed kernel."""
     root = parse(blob)["children"]
     confs = root["configurations"]
@@ -119,7 +119,11 @@ def ram_boot_dtb(blob, config):
         raise ValueError("truncated kernel or decompression extends into the FIT")
     if fit_base + len(blob) > 0x4b000000:
         raise ValueError("FIT overlaps Q6 reservation")
-    return fdt["data"]
+    return fdt["data"], image
+
+
+def ram_boot_dtb(blob, config):
+    return ram_boot_payloads(blob, config)[0]
 
 
 def main():
@@ -128,14 +132,19 @@ def main():
     parser.add_argument("--config")
     parser.add_argument("--ram-boot-dtb", type=Path,
                         help="check the AX23 RAM layout and extract its selected DTB")
+    parser.add_argument("--ram-boot-kernel", type=Path, help="extract the selected decompressed kernel")
     args = parser.parse_args()
-    if args.ram_boot_dtb and not args.config:
+    if (args.ram_boot_dtb or args.ram_boot_kernel) and not args.config:
         parser.error("--ram-boot-dtb requires --config")
     try:
         blob = args.image.read_bytes()
         ok, lines = verify(blob, args.config)
-        if ok and args.ram_boot_dtb:
-            args.ram_boot_dtb.write_bytes(ram_boot_dtb(blob, args.config))
+        if ok and (args.ram_boot_dtb or args.ram_boot_kernel):
+            dtb, kernel = ram_boot_payloads(blob, args.config)
+            if args.ram_boot_dtb:
+                args.ram_boot_dtb.write_bytes(dtb)
+            if args.ram_boot_kernel:
+                args.ram_boot_kernel.write_bytes(kernel)
     except (ValueError, IndexError, struct.error, KeyError, lzma.LZMAError) as e:
         print("FAIL %s" % e); return 1
     print("\n".join(lines))

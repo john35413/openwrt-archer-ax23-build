@@ -15,11 +15,11 @@ r() { printf '%-4s %s\n' "$1" "$2" | tee -a "$OUT"; [ "$1" = FAIL ] && FAILS=$((
 : >"$OUT"
 echo "# Artifact validation ($VARIANT) $(date -u +%FT%TZ)" | tee -a "$OUT"
 
-ITB=$(ls "$BIN"/*"$DEV"-initramfs-uImage.itb 2>/dev/null | head -1)
+ITB=$(ls "$BIN"/*"$DEV"-initramfs-uImage.itb 2>/dev/null | head -1 || true)
 [ -f "$ITB" ] && r PASS "initramfs FIT present: $(basename "$ITB") ($(stat -c%s "$ITB") bytes)" || { r FAIL "initramfs FIT missing"; exit 1; }
 
 # Check the bytes U-Boot will select (including hashes and kernel extent).
-if python3 -I "$PROJ/tools/fit-verify.py" "$ITB" --config config@mp02.1 --ram-boot-dtb "$WORK/board.dtb" >"$WORK/fit.txt"; then
+if python3 -I "$PROJ/tools/fit-verify.py" "$ITB" --config config@mp02.1 --ram-boot-dtb "$WORK/board.dtb" --ram-boot-kernel "$WORK/Image" >"$WORK/fit.txt"; then
     r PASS "FIT hashes, default config, kernel addresses and decompressed extent"
     dtc -q -I dtb -O dts -o "$WORK/board.dts" "$WORK/board.dtb"
     if ! python3 -I "$PROJ/tests/static/check_dtb.py" "$WORK/board.dts" >"$WORK/dtb-checks.txt"; then
@@ -48,13 +48,18 @@ if [ -d "$ROOT" ]; then
 			if python3 -I "$PROJ/tools/bdf/board2.py" scoped "$f/board-2.bin" --eu --stock-board-id "$sid" && [ ! -e "$f/board.bin" ]; then
 				r PASS "$fw exact AX23 variant keys and no board.bin fallback"
 			else r FAIL "$fw unexpected board data or unscoped fallback"; fi
+		elif [ "$VARIANT" = dev ]; then
+			r FAIL "$fw dev board-2.bin missing"
 		else
 			r INFO "$fw board-2.bin ABSENT (no locally supplied board data) -> Wi-Fi BLOCKED, same -12 as baseline"
 		fi
 	done
 	ls "$ROOT"/lib/firmware/ath11k/IPQ5018/hw1.0/q6_fw.mdt >/dev/null 2>&1 && r PASS "Q6 firmware present" || r FAIL "Q6 firmware missing"
 	if [ "$VARIANT" = dev ]; then
-		grep -q 'target=/lib/firmware/$FIRMWARE' "$ROOT/lib/functions/caldata.sh" && r PASS "caldata regdomain fix present" || r FAIL "caldata regdomain fix missing"
+        if python3 -I "$PROJ/tools/check-initramfs.py" "$WORK/Image" "$ROOT" >"$WORK/embedded-files.txt"; then
+            r PASS "selected FIT kernel contains both staged radio modules, EU board data and startup hooks"
+        else r FAIL "selected FIT kernel embedded initramfs failed verification"; fi
+        grep -q 'target=/lib/firmware/$FIRMWARE' "$ROOT/lib/functions/caldata.sh" && r PASS "caldata regdomain fix present" || r FAIL "caldata regdomain fix missing"
 		grep -q "platform_upgrade_blocked" "$ROOT/lib/upgrade/platform.sh" && r PASS "sysupgrade interlock present" || r FAIL "sysupgrade interlock missing"
 	else
 		grep -q "platform_upgrade_blocked" "$ROOT/lib/upgrade/platform.sh" && r INFO "interlock present" || r INFO "baseline: no sysupgrade interlock (falls through to default_do_upgrade)"
