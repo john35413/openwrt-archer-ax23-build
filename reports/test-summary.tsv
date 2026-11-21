@@ -1,6 +1,1 @@
-unit-python	PASS	logs/test-unit-python.log
-unit-ath11k-rings	PASS	logs/test-unit-ath11k-rings.log
-unit-caldata	PASS	logs/test-unit-caldata.log
-unit-mac	PASS	logs/test-unit-mac.log
-unit-bdf-extract	PASS	logs/test-unit-bdf-extract.log
-unit-selfdiag-readonly	PASS	logs/test-unit-selfdiag-readonly.log
+static	PASS	logs/test-static.log

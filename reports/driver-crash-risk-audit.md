@@ -26,7 +26,7 @@ hours, and what does the image do about it? Labels as in `wifi-root-cause.md`.
 | Risk | Why it remains | Detector on the device | Resolving observation |
 |---|---|---|---|
 | Q6 firmware 2.7 vs OEM 2.5 behaviour on this board | 2.7 reaches QMI/BDF on HW-3P; full operation never observed | S3.13 (crash lines), S3.15/S3.16 (remoteproc state, coredump mode) | 24 h with both radios loaded, 0 "fatal error received" |
-| Concurrent dual-radio start-up memory peak | the order-9 TX ring allocation is gone (0012), but total host DMA + firmware start overlap is unmeasured | S3.8, M.3/M.4/M.10 | boot with `ax23_radios=seq` vs `both`; compare buddyinfo and allocation failures |
+| Concurrent dual-radio start-up memory peak | the TX ring's order-9/order-8 allocations are gone (0012), but **two order-9 link-descriptor banks per radio remain** (upstream design, no reference reduces them; EX511 v2 runs with them) and the start-up overlap is unmeasured | S3.8, M.3/M.4/M.10 | boot with `ax23_radios=seq` vs `both`; compare free order ≥ 8 blocks and allocation failures |
 | Regulatory init with the OEM EU 5 GHz BDF | EX511 saw `regd update: -22` with a stock 5 GHz BDF (different region/FEM) | S3.7 | first boot dmesg: no "failed to perform regd update" |
 | DFS / channel change on 5 GHz | never exercised (hwsim has no radar) | dmesg/hostapd log | owner: use a non-DFS channel (36–48) first; test DFS later |
 | Reassociation leak | twin shows 20/20 WPA3 reconnects (SIM); real firmware peers untested | `soak-monitor.sh` MemAvailable slope | 24 h with periodic client reconnects |

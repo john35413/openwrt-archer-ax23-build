@@ -103,6 +103,26 @@ class StaticPatch(unittest.TestCase):
         self.assertLess(n, DEFAULT_TX_COMP)
 
 
+class RxReferenceValues(unittest.TestCase):
+    """0018 (ath11k 962): RX ring sizes in FW memory mode 2 follow the published
+    low-memory profiles (ath-next proposal, PR #21495, QSDK 512M)."""
+
+    def setUp(self):
+        self.t = patch_text("0018-")
+        self.add = "\n".join(added_lines(self.t))
+        self.rem = "\n".join(removed_lines(self.t))
+
+    def test_rxdma_buffer_ring_is_1024_on_both_radios(self):
+        self.assertIn("#define DP_RXDMA_BUF_RING_SIZE_LOWMEM\t\t1024", self.add)
+        self.assertIn("DP_RXDMA_BUF_RING_SIZE_LOWMEM_QCN6122", self.rem)
+        self.assertNotIn("ATH11K_HW_QCN6122_HW10", self.add)
+
+    def test_error_destination_ring_keeps_default(self):
+        self.assertIn("DP_RXDMA_ERR_DST_RING_SIZE_LOWMEM", self.rem)
+        self.assertNotIn("DP_RXDMA_ERR_DST_RING_SIZE_LOWMEM", self.add)
+        self.assertIn("return DP_RXDMA_ERR_DST_RING_SIZE;", self.add)
+
+
 class CompletionModel(unittest.TestCase):
     """Python model of dp_tx.c with the patched macro; srng = capacity size-1."""
 

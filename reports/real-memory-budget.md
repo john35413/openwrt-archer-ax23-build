@@ -28,7 +28,19 @@ Per-radio host rings, **before** any client associates:
 |---|---|---|---|
 | RX pre-posted buffers (×~2.8 KiB skb) | ~25 MiB/radio | ~4.6 MiB per radio (RXDMA buf 1024 after 0018; 512 before) | ~41 MiB both |
 | **TX completion ring** DMA (2 MiB) + FIFO kmalloc (1 MiB) | **3 MiB/radio** | **192 KiB/radio** | **~5.6 MiB both** |
-| **total host DMA, both radios** | **~56 MiB** | **~9.6 MiB** | **~46 MiB** |
+| WBM link-descriptor banks (32768 × 128 B, 2 × order-9 blocks) + idle ring (order-7) | ~4.3 MiB/radio | ~4.3 MiB/radio (unchanged; no reference profile reduces it) | 0 |
+| REO/WBM/TCL fixed rings (REO dst 4×2048, REO status 2048, TCL data 512, …) | ~0.4 MiB/radio | same | 0 |
+| **total host DMA, both radios** | **~65 MiB** | **~19 MiB** | **~46 MiB** |
+
+**Correction (adversarial review):** an earlier version of this table omitted the WBM
+link-descriptor banks. They are allocated in `ath11k_dp_alloc()` at firmware-ready
+time as **two order-9 (2 MiB) coherent blocks per radio**. So 0012 removes the TX
+ring's order-9 + order-8 allocations, but **four order-9 allocations remain** across
+both radios. They are unchanged upstream and in every reference profile, and EX511 v2
+(256 MiB, both radios) runs with them (REL). Whether they succeed on our unit is
+exactly what `ax23-selfdiag.sh` M.4 (free blocks of order ≥ 8) and M.10/S3.8
+(allocation failures) show on the first boot, ideally compared between
+`ax23_radios=seq` and `both`.
 
 **The allocation-order point matters more than the byte total** (`ath11k-low-memory-analysis.md` §4): the default TX ring needs an **order-9 (2 MiB)
 physically contiguous block per radio at firmware-ready time**. On a fragmented
@@ -42,10 +54,10 @@ the TX-ring change is necessary and not just a nicety.
 MemTotal (boot)                                    ≈ 173,056 kB   [3P]
 − initramfs rootfs held in RAM (RAM boot only)     ≈  29,000 kB   [STATIC, artifacts-dev.txt]
 − kernel + base userspace working set              ≈  30,000 kB   [HYP, twin-anchored]
-− ath11k host DMA both radios (0002+0012+0018)     ≈   9,800 kB   [STATIC estimate]
+− ath11k host DMA both radios (0002+0012+0018)     ≈  19,000 kB   [STATIC estimate, incl. 8.6 MiB link descriptors]
 − conntrack/fw4/dnsmasq/hostapd×4/LuCI peak        ≈  10,000 kB   [HYP, twin-anchored]
 ----------------------------------------------------------------
-≈ 85–100 MiB MemAvailable idle, both radios up     [HYP; 0018 costs ~1.4 MiB of it]
+≈ 75–90 MiB MemAvailable idle, both radios up      [HYP; corrected in the adversarial review: link descriptors were omitted before]
 A NAND install frees most of the ~29 MiB initramfs share.
 ```
 **Cross-device sanity (REL):** EX511 v2 (256 MiB, mode 2 both radios, but with NSS

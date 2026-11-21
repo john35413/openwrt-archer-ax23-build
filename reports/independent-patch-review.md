@@ -16,6 +16,7 @@ where it exists, the OEM firmware. Labels as in `wifi-root-cause.md`.
 | R7 | earlier report `ethernet-nat-validation.md` §3 | claimed the stock DTB "matches" GPIO 39 and dismissed `CONFIG_SWITCH_RESET=26` | report error | corrected in `oem-openwrt-differential-analysis.md`; this table records it |
 | R8 | 0004 | LED triggers assume phy0 = 2.4 GHz; wrong only under the new `ax23_radios=5g` diagnostic profile | cosmetic | documented |
 | R9 | twin harness | 30-min soak's memory sampler died with its SSH channel (S07 empty) | test gap | `setsid` fix; 160 MiB run now records min/slope |
+| R10 | 0012 claim + `real-memory-budget.md` | 0012 was described as removing the order-9 allocation at firmware-ready time, but `ath11k_dp_link_desc_setup()` still allocates **two order-9 (2 MiB) link-descriptor banks per radio**, and the budget omitted those 8.6 MiB | medium (claim/budget) | budget corrected (host DMA ~19 MiB, projection 75–90 MiB); claim narrowed; not patched (no reference reduces it, EX511 runs with it); measured by selfdiag M.4/M.10 |
 
 ## 2. Per-patch verdict
 | Patch | Purpose | Class | Review result |

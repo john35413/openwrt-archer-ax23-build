@@ -13,7 +13,7 @@ Labels as in `wifi-root-cause.md`. HW-3P = AX21 v5 running AX23 v2 firmware
 | 5 BDF download | board-2.bin found under the AX23 variant (or fallbacks) | EU b24/b60 from the signed OEM image | BUILD validator (built rootfs) |
 | 6 BDF / M3 addresses | inside `q6_region` 0x4b000000–0x4e000000 | 0x4c400000, 0x4d100000 (+128 KiB), m3-dump 0x4df00000 (+1 MiB): all inside | arithmetic (this report); the DR5018S "ioremap error for bdf_addr" mode cannot occur |
 | 7 Calibration | caldata hotplug reads ART+0x1000 and ART+0x26800 (0x20000 each, no overlap, within the 1 MiB ART), read-only | `11-ath11k-caldata`, ART read-only (0015) | arithmetic + SRC |
-| 8 DP alloc | host rings with order ≤ 5 contiguous allocations in mode 2 | 0002 + 0012 + 0018 | BUILD + model |
+| 8 DP alloc | host rings in mode 2: TX ring now order-5 (0012); **WBM link-descriptor banks still 2 × order-9 per radio** (upstream) | 0002 + 0012 + 0018 | BUILD + model; REL (EX511 runs with the same banks) |
 | 9 regdb / country | EU board data, country GR or DE; `00` never passed | 0010, `configs/uci/40-regulatory-gr.uci` | SIM (twin) |
 | 10 interfaces | phy0 2.4 GHz, phy1 5 GHz, hostapd up | — | SIM only |
 
