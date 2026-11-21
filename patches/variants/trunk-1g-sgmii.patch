@@ -1,0 +1,33 @@
+Diagnostic variant, NOT in patches/openwrt/series and never part of the default image.
+Apply to a prepared tree only for the 1G trunk test: patch -p1 -d build/dev/openwrt < patches/variants/trunk-1g-sgmii.patch
+Both ends of the CPU trunk move to SGMII 1000 (as shipped on MR80X v2 / EX511 v2); pause and all other settings unchanged.
+
+--- a/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts
++++ b/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts
+@@ -239,10 +239,11 @@
+  */
+ &gmac1 {
+ 	status = "okay";
+-	phy-mode = "2500base-x";
++	/* DIAGNOSTIC VARIANT: 1G SGMII trunk (both ends), only if the 2.5G trunk moves no frames */
++	phy-mode = "sgmii";
+ 
+ 	fixed-link {
+-		speed = <2500>;
++		speed = <1000>;
+ 		full-duplex;
+ 		pause;
+ 	};
+@@ -334,10 +335,10 @@
+ 				reg = <6>;
+ 				label = "cpu";
+ 				ethernet = <&gmac1>;
+-				phy-mode = "2500base-x";
++				phy-mode = "sgmii";
+ 
+ 				fixed-link {
+-					speed = <2500>;
++					speed = <1000>;
+ 					full-duplex;
+ 					pause;
+ 				};

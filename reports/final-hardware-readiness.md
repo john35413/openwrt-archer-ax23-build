@@ -104,6 +104,9 @@ hashes and `config@mp02.1`. Board data repacked with 2 explicit variant-qualifie
     observation on the bench. **If UART is unacceptable, no** (there is no UART-free
     install), so return it unopened.
 
+## Source-tree changes after this image
+- `ax23-selfdiag.sh` S2.8 (GPIO 26/39 claim and mux, read-only) and the 1 G SGMII trunk variant (`patches/variants/trunk-1g-sgmii.patch`, BUILD-checked, not in `series`) were added after the image above. The self-diagnostic is streamed from the checkout at test time, so S2.8 works with this image without a rebuild, but it was not part of the validated test set. Neither changes executable firmware code, so the image and its SHA256 stay as stated.
+
 ## Stage status
 | Stage | Status |
 |---|---|

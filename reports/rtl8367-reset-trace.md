@@ -46,7 +46,7 @@ which is a label, not a consumer. PCB continuity remains **UNV**.
 | Item | Stock | Ours | Evidence / status |
 |---|---|---|---|
 | SerDes table (`HSGCfg`, 9 SDS writes incl. `0x0410 = 0x0002`, the "HSGMII signal" fix that U-Boot's comment says moved into API 1.4.2) | applied | **identical 9 values** + `{0x0004, 0x074F}` (from the 777-07 series) | OEM-SRC vs SOURCE. The extra entry's provenance is the 777 author's vendor driver version, not this tarball. |
-| `SDSNctrlPatch`: 129 writes (`0x6100 = 0x2800`, words to `0x7000–0x707c` via `0x6135/0x6136`, closing `0x6100–0x6104`), applied before the table on every SGMII/HSGMII set-up | applied | **not applied**. Linux's `CHIP_RESET` erases U-Boot's copy. | OEM-SRC. A **candidate** explanation for sibling 2.5 G "link up, zero frames" (EX511 v2, MR80X v2, REL). **Not imported:** the source file is marked Realtek proprietary, and no open driver implements it (GitHub search: only two vendor-API copies). HW-3P passes traffic without it. |
+| `SDSNctrlPatch`: 129 writes, applied before the table on every SerDes-0 set-up | applied | **not applied**. Linux's `CHIP_RESET` erases U-Boot's copy. | OEM-SRC. It is an **NCTL controller ROM patch** (§6), not a SerDes tuning table. **Not imported:** Realtek proprietary, no open implementation, purpose of the patched code UNV. HW-3P passes traffic without it. |
 | Embedded DW8051 | vendor loads firmware | held in reset by design (it would race with phylink) | SOURCE |
 | CPU-port flow control | `txpause = rxpause = DISABLED` (U-Boot) | `pause` on both fixed links | OEM-SRC vs SOURCE. HW-3P works with pause. Measurable variable, not changed. |
 | CPU port mode | HSGMII 2500 forced, nway disabled; stock DT `switch_mac_mode = 0x0c`, `forced-speed 2500` | 2500base-x fixed-link, in-band AN off | matches |
@@ -75,5 +75,44 @@ Passive and read-only, in this order:
    `reset-gpios = <&tlmm 26 GPIO_ACTIVE_LOW>` on the switch node, a pinctrl state
    `gpio26: function "gpio", bias-pull-up`, and a reset assert ≥ 200 ms / release-to-access
    ≥ 200 ms (stock timing). Repeat the 20× cold/warm boot test against the GPIO 39 baseline.
-5. **Only if S2.4 fails at 2.5 G:** the existing 1 G SGMII fallback
-   (`ethernet-initialization-comparison.md` §3.2), then pause off, one variable at a time.
+5. **Only if S2.4 fails at 2.5 G:** check S2.5 (777-08 re-latch events), then the 1 G SGMII
+   variant `patches/variants/trunk-1g-sgmii.patch` (§7), then pause off, one variable at a time.
+
+## 6. The vendor SerDes-0 sequence (`SDSNctrlPatch`): what it is
+No table values are reproduced here or anywhere in the project.
+
+| Question | Answer | Evidence |
+|---|---|---|
+| Which subsystem? | The **NCTL** block, not the SerDes analog registers. The writes target `RTL8367D_REG_NCTL_0` (`0x6100`: `CPU_EN` 13:12, `PATCH_MODE_EN` 11, `PC_SPECIFY_EN` 10, `PC_SPECIFY` 9:0), `NCTL_RAM_INDACS_0/1` (`0x6135/0x6136`, an indirect window into NCTL RAM) and the breakpoint slots `NCTL_Pnn_0/1` (`BP_EN` + 10-bit `BP_ADDR`, 10-bit target). The sequence enables patch mode, loads a short program into NCTL RAM and installs breakpoint redirects over NCTL ROM code: a **ROM patch for an embedded SerDes-control sequencer**. It is separate from the DW8051 (`DW8051_RDY` 0x1336, `DW8051_EN`), which our driver holds in reset. | OEM-SRC (`rtl8367d_reg.h` field names) |
+| When is it applied? | Unconditionally, with no chip-revision gate, whenever SerDes 0 is put into service: extension port 1 in any SerDes mode (`_dal_rtl8367d_setAsicPortExtMode`) and port 4 in fiber combo media (`dal_rtl8367d_port_phyComboPortMedia_set`). | OEM-SRC |
+| What does the patched code do? | **UNV.** No public documentation names NCTL: the register map kept by the in-kernel rtl8365mb maintainer (luizluca, `Realtek_Registers_n_Structure_Mapping.md`) documents the DW8051 but not NCTL. The program was not decoded (proprietary). | public source search |
+| Do open drivers reach the same behaviour another way? | For the documented failure, **yes, by different steps.** 777-08 (in our base) identifies the family-D cause of "2.5G/Full on both sides, no frames, no CRC/FIFO errors": the receiver latches on the `SDS_MISC` DISABLE → HSGMII edge only once the far-end MAC is up. It re-drives that edge after the conduit comes up. 0006–0009 bring the IPQ5018 UNIPHY up at GMAC probe (SoC end first, as the vendor bootloader orders it). 777-07 writes the vendor-identical SerDes table in vendor order. Whether the NCTL patch adds anything beyond that is **UNV**. | SOURCE + REL (777-08 IPQ5018 log; kuncy7 AX55) |
+| Could its absence explain the sibling failures? | **Not shown.** AX55 v1 (family C, no NCTL patch path) is explained and fixed by ordering (kuncy7 `930-09`/`778`). Family-D "carrier up, no frames" is explained by the latch-edge mechanism above (777-08). HW-3P runs family D without the NCTL patch and passes NAT traffic. NCTL remains a **candidate** only if S2.4 fails with 777-08 events logged (S2.5). | SOURCE + REL + HW-3P |
+
+### Other public fixes checked (none adoptable)
+- **`930-09` / `778`** "bring the SerDes up once the conduit is up": every hunk returns early for family D ("Family D keeps its own re-latch work"). Not applicable to the RTL8367S-VB.
+- **OpenWrt main since our base:** UNIPHY fixes `ee6860ee0f`, `59f295f58f`, `62792fff96` are already in 0006–0008. `a41558d2d3` fixes ipq6018/ipq8074 clock names "as ipq5018 already does". `b7afc4baab` was already rejected (cross-device inventory). The rest are other SoCs.
+- **0024 / 0025:** they address boot-time CMN PLL gating and family-D reset/settle intervals. The carrier-up-no-frames mechanism is covered by 777-08 and 0006–0009, not by them. No defect found; kept.
+
+## 7. 1 Gbps trunk diagnostic fallback (prepared, not built, not in the image)
+`patches/variants/trunk-1g-sgmii.patch` moves both trunk ends to `phy-mode = "sgmii"`
+with a 1000 fixed link, as MR80X v2 and EX511 v2 ship (REL). Everything else is
+unchanged (pause, GPIO 39, all patches). It is useful because it splits a 2.5 G failure
+into "HSGMII/latch path" vs "everything else" with one variable. 1 G per direction
+still carries a 1 G WAN. Our driver already has the vendor-identical family-D SGMII
+table, and 0006 clears the UNIPHY0 SGMII mode select.
+
+`tests/unit/test_trunk_variant.sh` (`unit-trunk-variant`) checks four things:
+- The variant is not in the default series.
+- It applies to the prepared tree.
+- Compiled with the build's own cpp/dtc flow, the unmodified DTS reproduces the shipped DTB byte for byte (control), and the variant compiles.
+- Exactly four properties change: `phy-mode` and `speed` on both trunk ends.
+
+**BUILD only.** The variant has not run on any hardware. Use it only after S2.4 fails on the default 2.5 G image:
+`patch -p1 -d build/dev/openwrt < patches/variants/trunk-1g-sgmii.patch`, rebuild, and revert before any other build.
+
+## 8. Status of S2.8 and the image
+- `ax23-selfdiag.sh` is **not part of the firmware image**: it is streamed from the checkout at test time (`ssh … sh -s < tests/hardware/ax23-selfdiag.sh`).
+- S2.8 therefore needs **no rebuild** and works with the current RAM image (`f9aeb698…`, patches 0001–0027).
+- It was **not part of the test set validated with that image**. Record the selfdiag git revision alongside every bundle.
+- The variant and S2.8 changed no executable firmware code, so no rebuild was done.
