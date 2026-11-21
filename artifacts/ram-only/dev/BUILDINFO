@@ -1,8 +1,11 @@
 variant=dev
-built=2026-11-21T16:49:43Z
+built=2026-11-21T19:12:11Z
 openwrt=98b1185d039344553aaf8270d0661cfad4f0a54d
 ax23=93028b47d291e251dc108de5fbd8bd3f77a9300c
-build_tree_head=0b25ecfe1e4121aedd6a172edf806e90de8dc335
+build_tree_head=d76f9b0aa742b9968e59d95d82a64f5086c16284
+  d76f9b0aa7 mac80211: ath11k: low-memory RX rings follow the reference profiles
+  a5a884786b qualcommax: ipq50xx: archer-ax23-v2: radio bring-up profiles
+  330ad1f486 qualcommax: wcss-sec: don't hold firmware recovery for a coredump
   0b25ecfe1e qualcommax: ipq50xx: archer-ax23-v2: make every partition read-only
   dd37b930ca mac80211: backport ath11k and mac80211 fixes from OpenWrt main
   95b9414690 mac80211: ath11k/ath12k: backport mac_phy_caps stride fix

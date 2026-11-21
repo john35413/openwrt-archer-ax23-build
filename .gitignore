@@ -21,3 +21,4 @@ __pycache__/
 /logs/nand/console.txt
 /logs/nand/dmesg*.txt
 /logs/nand/.vm-entry.sh
+/logs/build-dev-resume-*.log

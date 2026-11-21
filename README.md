@@ -11,7 +11,8 @@ hardware test plan for OpenWrt on the **TP-Link Archer AX23 v2.0** (Qualcomm IPQ
 > `reports/nand-boot-safety.md`). The AX23 **v1** (MediaTek) is a different
 > device; nothing here applies to it.
 
-Start with **`reports/final-validation.md`**: validation matrix, decision, next steps.
+Start with **`reports/final-hardware-readiness.md`** (latest decision and the 15 answers), then
+`reports/physical-hardware-test-plan.md` for the bench procedure.
 
 ## Layout
 
@@ -90,6 +91,13 @@ it is not in this repository. Extract it from your own unit's stock firmware
 | 0013 | ath11k/ath12k mac_phy_caps stride overflow fix (CVE-2026-90398/9) | cherry-picked from OpenWrt main |
 | 0014 | ath11k 102-118/954-956 + mac80211 484-490 fixes from OpenWrt main | NULL deref/leaks/use-after-frees merged upstream after our base |
 | 0015 | every flash partition `read-only` in the RAM image | the RAM image must not be able to write NAND at all (the auto-attached "data" UBI otherwise mounts read-write) |
+| 0016 | wcss-sec: no inline coredump (main `b97760cbc9`) | a Q6 firmware crash otherwise kept both radios down for the 5-minute devcoredump timeout |
+| 0017 | `ax23_radios=none/2g/5g/both/seq` bring-up profiles | isolate each radio and the simultaneous start-up memory peak on the first hardware boot (RAM/sysfs only) |
+| 0018 | ath11k RX rings follow the reference low-memory profiles | 0002 had two unreferenced values (IPQ5018 RX buffers 512, RXDMA error ring 128) |
+
+Board data: `board-data-from-tplink-firmware.sh` packs the EU files under the observed OTP
+board id (255), the OEM DT ids (0x24/0x60) and ath11k's chip-id fallback, so the radios
+find them whatever their OTP holds (`board2.py robust` gates the build).
 
 ## Pinned sources
 
