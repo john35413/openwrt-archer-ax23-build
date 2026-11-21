@@ -60,6 +60,16 @@ R() { x c1 ssh "${SSHO[@]}" root@192.168.1.1 "$@"; }
 for _ in $(seq 1 30); do R true 2>/dev/null && break; sleep 3; done
 R true && res T02 PASS "SSH to router from LAN (key auth)" || res T02 FAIL "SSH to router"
 R 'uname -a; cat /etc/openwrt_release; free; ip -br link; iw dev; logread | tail -40' >"$OUT/router-state-boot.txt" 2>&1
+# memory sampler on the router (every 10 s: epoch MemAvailable MemFree load1), fetched before the reboot test
+R 'cat >/tmp/memsampler.sh' <<'EOS'
+while :; do
+	set -- $(awk '/MemAvailable/{a=$2} /MemFree/{f=$2} END{print a, f}' /proc/meminfo)
+	echo "$(date +%s) $1 $2 $(cut -d' ' -f1 /proc/loadavg)" >>/tmp/memlog
+	sleep 10
+done
+EOS
+R 'nohup sh /tmp/memsampler.sh >/dev/null 2>&1 &'
+RAMLBL="${TWIN_RAM:-200M}"; LOADS="${TWIN_LOAD_SEC:-180}"
 
 # S06: the hardware self-diagnostic runs under the image's BusyBox ash and changes nothing
 # (config/overlay/UCI/mounts/modules/links identical before and after; it is not an AX23,
@@ -210,19 +220,26 @@ x c1 ping -c2 -W3 "$I" >/dev/null && res W26 PASS "LAN can reach IoT device (e.g
 # ------------------------------------------------------------ stability / resources
 R 'free; cat /proc/meminfo | head -5' >"$OUT/router-mem-after.txt"
 ma=$(R "awk '/MemAvailable/{print \$2}' /proc/meminfo")
-res S01 INFO "router MemAvailable with 4 SSIDs + 2 clients (200 MiB VM; hwsim, not ath11k)" "${ma} kB"
+res S01 INFO "router MemAvailable with 4 SSIDs + 2 clients ($RAMLBL VM; hwsim, not ath11k)" "${ma} kB"
 c=$(R 'dmesg' | grep -ciE "oops|panic|bug:|oom-kill|segfault")
 [ "$c" = 0 ] && res S02 PASS "no kernel oops/panic/OOM/segfault" || res S02 FAIL "kernel errors" "$c"
 h=$(R 'pidof hostapd'); [ -n "$h" ] && res S03 PASS "hostapd still running" || res S03 FAIL "hostapd died"
-# 3-minute mixed load: wired NAT + both Wi-Fi bands, router must stay responsive
+# mixed load (default 3 min, TWIN_LOAD_SEC for a soak): wired NAT + both Wi-Fi bands, router must stay responsive
 S5=$(STA phy3 AX23-5G SAE twin-test-wpa3); S2=$(STA phy2 AX23-2G WPA-PSK twin-test-wpa2)
-x c1 iperf3 -c 93.184.215.10 -t 180 >/dev/null 2>&1 & IP1=$!
-R "ip netns exec sta-phy3 iperf3 -c 93.184.215.10 -t 170 >/dev/null 2>&1 &"
-x c2 ping -i 0.5 -c 340 192.168.1.1 >"$W/soak-ping.txt" 2>&1 & PP=$!
-wait $IP1; wait $PP
+x c1 iperf3 -c 93.184.215.10 -t "$LOADS" >/dev/null 2>&1 & IP1=$!
+R "ip netns exec sta-phy3 iperf3 -c 93.184.215.10 -t $((LOADS - 10)) >/dev/null 2>&1 &"
+x c2 ping -i 0.5 -c $((LOADS * 2 - 20)) 192.168.1.1 >"$W/soak-ping.txt" 2>&1 & PP=$!
+( end=$(( $(date +%s) + LOADS - 20 )); while [ "$(date +%s)" -lt $end ]; do	# LuCI + DNS + DHCP churn during the load
+	x c3 curl -s -o /dev/null --max-time 10 http://192.168.1.1/cgi-bin/luci/; SX phy2 nslookup inet.example.net 192.168.1.1 >/dev/null 2>&1; dhcp c3; sleep 5; done ) & CH=$!
+wait $IP1; wait $PP; wait $CH 2>/dev/null
 sl=$(sed -n 's/.* \([0-9.]*\)% packet loss.*/\1/p' "$W/soak-ping.txt")
 SX phy2 ping -c3 -W3 93.184.215.10 >/dev/null && aw=ok || aw=fail
-awk "BEGIN{exit !($sl < 1)}" && [ $aw = ok ] && res S04 PASS "3 min mixed wired+Wi-Fi load: router responsive" "LAN ping loss ${sl}%, 2.4G client still online" || res S04 FAIL "3 min load" "loss=$sl wifi=$aw"
+awk "BEGIN{exit !($sl < 1)}" && [ $aw = ok ] && res S04 PASS "$((LOADS/60)) min mixed wired+Wi-Fi+LuCI/DNS/DHCP load: router responsive" "LAN ping loss ${sl}%, 2.4G client still online" || res S04 FAIL "$((LOADS/60)) min load" "loss=$sl wifi=$aw"
+R 'cat /tmp/memlog' >"$OUT/router-memlog.txt" 2>/dev/null
+mn=$(awk 'NF>=3{if(m==""||$2<m)m=$2} END{print m}' "$OUT/router-memlog.txt")
+sl2=$(awk -v L="$LOADS" 'NF>=3{n++; t[n]=$1; a[n]=$2} END{if(n<3){print "n/a"; exit} k=0; for(i=1;i<=n;i++) if(t[n]-t[i]<=L){x+=t[i];y+=a[i];xx+=t[i]*t[i];xy+=t[i]*a[i];k++} if(k<3){print "n/a"; exit} s=(k*xy-x*y)/(k*xx-x*x); printf "%.1f", s*3600}' "$OUT/router-memlog.txt")
+c=$(R 'dmesg' | grep -ciE "oom-kill|out of memory|page allocation failure")
+res S07 INFO "memory over the run ($RAMLBL VM): min MemAvailable, slope during load, OOM/alloc failures" "min ${mn} kB; slope ${sl2} kB/h; oom/alloc-fail lines ${c}"
 # reboot and full recovery
 R 'reboot' >/dev/null 2>&1; sleep 20; t0=$(date +%s); back=0
 for _ in $(seq 1 120); do dhcp c1 && R true 2>/dev/null && { back=1; break; }; sleep 3; done

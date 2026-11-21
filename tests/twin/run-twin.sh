@@ -19,7 +19,7 @@
 # drivers work together. It is not evidence that the physical router works.
 set -euo pipefail
 PROJ="$(cd "$(dirname "$0")/../.." && pwd)"
-OUT="$PROJ/logs/twin"; mkdir -p "$OUT"; rm -f "$OUT"/results.tsv "$OUT"/helper.done "$OUT"/router-console.log
+OUT="${TWIN_OUT:-$PROJ/logs/twin}"; mkdir -p "$OUT"; rm -f "$OUT"/results.tsv "$OUT"/helper.done "$OUT"/router-console.log
 IMG=$(ls "$PROJ"/build/twin/openwrt/bin/targets/armsr/armv8/*generic-initramfs-kernel.bin 2>/dev/null | head -1)
 [ -f "$IMG" ] || { echo "BLOCKED: twin image missing (./tools/build-twin.sh)"; exit 77; }
 KERNEL="${VM_KERNEL:-$(ls /boot/vmlinuz-*-generic 2>/dev/null | sort -V | tail -1)}"
@@ -46,11 +46,12 @@ for i in 0 1 2 3; do	# wan, lan1, lan2, lan3 (lan4 left unplugged)
 done
 cat >"$OUT/.helper-entry.sh" <<EOS
 #!/bin/bash
+export TWIN_RAM="$RMEM" TWIN_LOAD_SEC="${TWIN_LOAD_SEC:-180}"
 "${TWIN_TESTS:-$PROJ/tests/twin/twin-tests.sh}" "$OUT" "$PROJ/build/twin-keys/id_ed25519" > "$OUT/helper-console.txt" 2>&1
 echo \$? > "$OUT/helper.done"
 EOS
 chmod +x "$OUT/.helper-entry.sh"
-(cd /tmp && timeout 5400 vng --run "$KERNEL" --disable-microvm -m 1536M --cpus 2 \
+(cd /tmp && timeout $((5400 + ${TWIN_LOAD_SEC:-180})) vng --run "$KERNEL" --disable-microvm -m 1536M --cpus 2 \
 	--rwdir="$OUT" --qemu-opts="$hopts" --exec "$OUT/.helper-entry.sh" >"$OUT/helper-boot.log" 2>&1) || true
 cat "$OUT/helper-console.txt" 2>/dev/null | grep -E "^[A-Z][0-9]+ |SUMMARY" || true
 [ -f "$OUT/helper.done" ] || { echo "helper VM did not complete"; exit 1; }
