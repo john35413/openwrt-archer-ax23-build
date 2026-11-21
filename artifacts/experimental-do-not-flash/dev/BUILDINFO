@@ -1,0 +1,19 @@
+variant=dev
+built=2026-11-21T08:29:29Z
+openwrt=98b1185d039344553aaf8270d0661cfad4f0a54d
+ax23=93028b47d291e251dc108de5fbd8bd3f77a9300c
+build_tree_head=a249bf1d70597a751550db0a2c2e6c7b6c73ec27
+  a249bf1d70 qualcommax: ipq50xx: program the UNIPHY at gmac probe
+  5663d306ea qualcommax: pcs-qca-uniphy: fix macro and clock callback slips
+  dd5a76dbea qualcommax: pcs-qca-uniphy: re-resolve the link on a USXGMII rate change
+  ba831195e4 qualcommax: pcs: qca-uniphy: clear the mode select for SGMII on UNIPHY0
+  417dd1b1d3 qualcommax: ipq50xx: refuse sysupgrade on Archer AX23 v2
+  0493ae9e77 qualcommax: ipq50xx: archer-ax23-v2: fix Wi-Fi LED phy mapping
+  25f8f8b935 qualcommax: ipq50xx: add board-data package for Archer AX23 v2
+  5d6a775c73 mac80211: ath11k: smaller host RX rings in FW memory mode 2
+  c3dd64762a base-files: caldata: fix ath11k_remove_regdomain without target
+  724d0e5ee9 stage: Sply-Dev AX23 v2 tree @ 93028b47d291e251dc108de5fbd8bd3f77a9300c
+feed_packages=a16d10144dd3f854a57d9a512dfa84f990b45d65
+feed_luci=4bc2f85da82894c6a5d28ab1b610ca6e6ffc29ba
+feed_routing=4b9891b9136259f93294a424507ed24c5e8c1cbd
+host=Linux 6.18.44-fc-v726 x86_64 gcc=13.3.0

@@ -1,0 +1,4 @@
+These images are build by-products only. They have NOT been validated on
+hardware and the AX23 v2 has no validated sysupgrade/A-B (tp_boot_idx) logic
+or recovery path. Writing any of them to NAND can leave the router
+unbootable without UART access. See reports/nand-boot-safety.md.

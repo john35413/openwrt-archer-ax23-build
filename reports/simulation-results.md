@@ -12,7 +12,7 @@ Run it all with `./tools/test-dev.sh`. Raw logs: `logs/test-*.log`, `logs/networ
 | Variant | Result | Evidence |
 |---|---|---|
 | baseline (Sply-Dev `93028b4` on OpenWrt `98b1185`) | PASS: builds from scratch with pinned feeds | `logs/baseline/`, `artifacts/ram-only/baseline/{SHA256SUMS,BUILDINFO}` |
-| dev (baseline + 9 patches) | see `artifacts/ram-only/dev/BUILDINFO` and `reports/artifacts-dev.txt` | `logs/dev/` |
+| dev (baseline + 9 patches) | PASS: all 9 patches apply (`git am`); kernel with 777 v7 + UNIPHY fixes and mac80211 with patch 960 compile; image validates with **0 FAIL** | `logs/dev/`, `reports/artifacts-dev.txt`, `artifacts/ram-only/dev/` |
 
 Problems found and fixed while reproducing the build: GNU tar refuses to configure as root
 (`FORCE_UNSAFE_CONFIGURE=1`); `docs/BUILD.md`'s `patch -p1` step for the 777 series is wrong
@@ -32,6 +32,12 @@ Q6 region; DTB extracted; partition map, read-only flags, both radios, FW memory
 BDF addresses inside `q6_region`, switch and 2500base-x all PASS. **FAIL: Wi-Fi LED triggers
 reversed (D3, a baseline defect).** Board data ABSENT, so Wi-Fi is BLOCKED (the same `-12` as
 on hardware). No sysupgrade interlock.
+
+Dev (`reports/artifacts-dev.txt`): **all checks PASS**: the same FIT/DTB checks plus LED
+triggers 2.4G→phy0tpt / 5G→phy1tpt, caldata fix and sysupgrade interlock in the rootfs, and
+ath11k compiled from patched backports (object newer than patched source). Board data ABSENT
+(INFO), so Wi-Fi stays BLOCKED until the user supplies their unit's own board files.
+Initramfs: 13,321,604 bytes, sha256 `b622f545…6198b`; decompressed kernel 23.6 MB.
 
 ## 3. Unit tests
 
@@ -64,7 +70,8 @@ board scripts pass `sh -n`; no `.orig`/`.rej` leftovers; DTB checks on the built
 
 The suite runs in a QEMU x86-64 VM with Ubuntu kernel 6.8 (bridge VLAN filtering, 8021q, nftables,
 netem, CAKE), because the build host's kernel has no bridge support. The ruleset is **the output
-of the image's own fw4** (§5), with device names mapped to the namespaces. A second run with the
+of the image's own fw4** (§5; run for both the baseline and the dev rootfs, 33/33 each:
+`logs/network/results-fw4-generated-{baseline,dev}.tsv`), with device names mapped to the namespaces. A second run with the
 hand-written reference ruleset (`tests/network/fw4-reference.nft`) gave the same pass/fail result.
 
 | ID | Test | Result | Measurement (veth, NOT hardware) |

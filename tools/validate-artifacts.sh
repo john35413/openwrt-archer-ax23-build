@@ -78,8 +78,13 @@ else r FAIL "rootfs staging dir not found"; fi
 
 # --- ath11k module built with the low-memory patch (dev)
 if [ "$VARIANT" = dev ]; then
-	K=$(find "$OWRT"/build_dir/target-*/linux-qualcommax_ipq50xx/backports-*/drivers/net/wireless/ath/ath11k -name dp_rx.c 2>/dev/null | head -1 || true)
-	[ -n "$K" ] && grep -q "ath11k_dp_rx_ring_size" "$K" && r PASS "ath11k built with FW-mode-2 RX ring sizing" || r FAIL "ath11k low-memory patch not in built source"
+	# OpenWrt builds ath11k from backports (mac80211-*/backports-*), not from
+	# the kernel tree's own copy.
+	K=$(ls "$OWRT"/build_dir/target-*/linux-qualcommax_ipq50xx/mac80211-*/backports-*/drivers/net/wireless/ath/ath11k/dp_rx.c 2>/dev/null | head -1 || true)
+	O="${K%.c}.o"
+	if [ -n "$K" ] && grep -q "ath11k_dp_rx_ring_size" "$K" && [ -f "$O" ] && [ "$O" -nt "$K" ]; then
+		r PASS "ath11k built from patched backports source (FW-mode-2 RX ring sizing)"
+	else r FAIL "ath11k low-memory patch not in built backports source/object"; fi
 fi
 
 echo "fails=$FAILS" | tee -a "$OUT"
