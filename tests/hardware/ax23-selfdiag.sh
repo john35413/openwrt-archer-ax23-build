@@ -55,17 +55,21 @@ grep -q platform_upgrade_blocked /lib/upgrade/platform.sh 2>/dev/null && r S1.7 
 
 # ---- Stage 1: flash protection (sysfs only; no device node is opened) -----
 if [ -d /sys/class/mtd ]; then
+	seen=0
 	for m in /sys/class/mtd/mtd*; do
 		case "$m" in *ro) continue ;; esac
 		[ -f "$m/name" ] || continue
-		n=$(cat "$m/name"); f=$(cat "$m/flags" 2>/dev/null); s=$(cat "$m/size" 2>/dev/null)
-		w=$(( ${f:-0} & 0x400 ))
-		case "$n" in
-		0:SBL1|0:MIBIB|0:BOOTCONFIG|0:BOOTCONFIG1|0:QSEE|0:DEVCFG|0:CDT|0:APPSBL|0:ART|0:TRAINING|tp_data|radio)
-			[ "$w" -eq 0 ] && r S1.8 PASS "mtd $n read-only" "size=$s flags=$f" || r S1.8 FAIL "mtd $n read-only" "WRITEABLE flags=$f" ;;
-		*)	r S1.9 INFO "mtd $n" "size=$s writeable=$([ "$w" -eq 0 ] && echo no || echo yes)" ;;
-		esac
+		seen=$((seen+1))
+		n=$(cat "$m/name"); s=$(cat "$m/size" 2>/dev/null)
+		if ! f=$(cat "$m/flags" 2>/dev/null) || [ -z "$f" ]; then
+			r S1.8 FAIL "mtd $n flags unavailable" "size=$s"
+		elif [ $((f & 0x400)) -eq 0 ]; then
+			r S1.8 PASS "mtd $n read-only" "size=$s flags=$f"
+		else
+			r S1.8 FAIL "mtd $n writable" "size=$s flags=$f"
+		fi
 	done
+	[ "$seen" -ge 16 ] || r S1.9 FAIL "incomplete MTD inventory" "$seen nodes"
 else r S1.8 FAIL "mtd sysfs" "no /sys/class/mtd"; fi
 grep -q "ubi" /proc/mounts && r S1.10 INFO "UBI-backed mounts" "$(grep ubi /proc/mounts | awk '{print $2":"$3":"$4}')" || r S1.10 INFO "UBI-backed mounts" "none"
 grep -q " /tmp/tp_data " /proc/mounts && { grep -q " /tmp/tp_data .* ro[, ]" /proc/mounts \
@@ -87,10 +91,10 @@ for u in /sys/class/ubi/ubi[0-9]*; do
 	[ -e "$u/mtd_num" ] || continue
 	nub=$((nub+1))
 	m=$(cat "$u/mtd_num"); f=$(cat /sys/class/mtd/mtd$m/flags 2>/dev/null)
-	[ $(( ${f:-0} & 0x400 )) -eq 0 ] && nro=$((nro+1))
+	[ -n "$f" ] && [ $((f & 0x400)) -eq 0 ] && nro=$((nro+1))
 done
-[ "$nub" -eq "$nro" ] && r S1.15 PASS "every attached UBI sits on a read-only MTD (UBI ro_mode)" "$nub attached, $nro read-only" \
-	|| r S1.15 FAIL "UBI attached on a writeable MTD" "$nub attached, only $nro read-only: STOP"
+[ "$nub" -eq "$nro" ] && r S1.15 PASS "every attached UBI has a verified read-only backing MTD" "$nub attached, $nro read-only" \
+	|| r S1.15 FAIL "UBI backing MTD read-only check failed" "$nub attached, only $nro read-only: STOP"
 r S1.16 INFO "radio bring-up profile (ax23_radios=)" "$(cat /tmp/ax23_radio_profile 2>/dev/null || echo 'unset (both)')"
 
 # ---- Stage 2: wired networking --------------------------------------------
@@ -168,8 +172,8 @@ ma=$(awk '/MemAvailable/{print $2}' /proc/meminfo)
 # free blocks per order: orders >= 5 matter for the ath11k rings (961: order 5/4; default: order 9/8)
 awk '$4=="Normal"||$4=="DMA"||$4=="DMA32"{o=""; for(i=5;i<=NF;i++) o=o" o"(i-5)"="$i; print $4":"o}' /proc/buddyinfo 2>/dev/null \
 	| while read -r x; do r M.3 INFO "buddyinfo" "$x"; done
-hi=$(awk '{for(i=13;i<=NF;i++) s+=$i} END{print s+0}' /proc/buddyinfo 2>/dev/null)
-r M.4 INFO "free blocks of order >= 8 (1 MiB+)" "$hi"
+hi=$(awk '{for(i=14;i<=NF;i++) s+=$i} END{print s+0}' /proc/buddyinfo 2>/dev/null)
+r M.4 INFO "free blocks of order >= 9 (2 MiB+ on 4 KiB pages)" "$hi"
 echo "$D" | grep -qE "Out of memory|oom-kill" && r M.5 FAIL "no OOM kills" "see dmesg" || r M.5 PASS "no OOM kills" ""
 echo "$D" | grep -qE "page allocation failure" && r M.6 WARN "page allocation failures" "$(echo "$D" | grep -m2 'page allocation failure')" || r M.6 PASS "no page allocation failures" ""
 r M.7 INFO "coherent pool" "$(tr ' ' '\n' </proc/cmdline | grep coherent_pool)"
