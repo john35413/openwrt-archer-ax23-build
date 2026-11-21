@@ -33,17 +33,6 @@ CHECK
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 command -v hexdump >/dev/null || { echo "SKIP hexdump not installed"; exit 77; }
 
-# The function under test defaults to /lib/firmware/$FIRMWARE. If the host has
-# no /lib/firmware, re-run inside a private mount namespace where an overlay on
-# /usr/lib provides one; the host filesystem is never modified.
-if [ ! -d /lib/firmware ] && [ -z "${IN_NS:-}" ]; then
-	command -v unshare >/dev/null || { echo "SKIP no /lib/firmware and no unshare"; exit 77; }
-	mkdir -p "$T/u" "$T/w"
-	exec unshare -m --propagation private env IN_NS=1 OVL="$T" bash -c '
-		mount -t overlay overlay -o lowerdir=/usr/lib,upperdir="$OVL/u",workdir="$OVL/w" /usr/lib &&
-		mkdir -p /lib/firmware && exec bash "$0"' "$0"
-fi
-
 mkimg() {
 	head -c 131072 /dev/urandom >"$1"
 	printf '\x00\x00\x00\x00\x00\x00\x00\x00' | dd of="$1" bs=1 seek=$((0x450)) conv=notrunc 2>/dev/null
@@ -56,25 +45,23 @@ mkimg() {
 }
 at() { hexdump -v -n 2 -s "$2" -e '1/1 "%02x"' "$1"; }
 
-run() {	# run caldata.sh image -> prints 4 values
-	local lib="$1" img="$2"
-	# caldata_patch_data() writes /lib/firmware/$FIRMWARE; point FIRMWARE at
-	# our temp file through a relative path so nothing in /lib is touched.
-	(
-		set +u
-		d=$(dirname "$lib")	# .../lib/functions
-		mkdir -p /lib/functions
-		cp "$d/../functions.sh" /lib/functions.sh
-		cp "$d/system.sh" /lib/functions/system.sh
-		# shellcheck disable=SC1090
-		. "$lib"
-		mkdir -p /lib/firmware/t && cp "$img" /lib/firmware/t/cal.bin
-		export FIRMWARE="t/cal.bin"
-		ath11k_remove_regdomain </dev/null
-		cp /lib/firmware/t/cal.bin "$img"
-	) 2>/dev/null
-	echo "$(at "$img" 0x34) $(at "$img" 0x450) $(at "$img" 0x458) $(at "$img" 0x500) $(at "$img" 0x5a8)"
-}
+run() (
+    local lib="$1" img="$2" d
+    d=$(dirname "$lib")
+    cd "$T" || exit 1
+    mkdir -p lib/functions lib/firmware/t
+    cp "$d/../functions.sh" lib/functions.sh
+    # Relocate only absolute OpenWrt dependency and firmware paths in the fixture.
+    sed 's|^\. /lib/functions|. ./lib/functions|' "$d/system.sh" >lib/functions/system.sh
+    sed -e 's|^\. /lib/functions|. ./lib/functions|' -e 's|/lib/firmware/|./lib/firmware/|g' "$lib" >lib/functions/caldata.sh
+    set +u
+    . ./lib/functions/caldata.sh
+    export FIRMWARE=t/cal.bin
+    cp "$img" "lib/firmware/$FIRMWARE"
+    ath11k_remove_regdomain </dev/null >&2
+    cp "lib/firmware/$FIRMWARE" "$img"
+    echo "$(at "$img" 0x34) $(at "$img" 0x450) $(at "$img" 0x458) $(at "$img" 0x500) $(at "$img" 0x5a8)"
+)
 
 rc=0
 for which in base patched; do
