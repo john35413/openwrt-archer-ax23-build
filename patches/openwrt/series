@@ -9,3 +9,4 @@
 0009-qualcommax-ipq50xx-program-the-UNIPHY-at-gmac-probe.patch
 0010-wifi-scripts-do-not-let-another-radio-s-00-country-b.patch
 0011-uboot-envtools-qualcommax-add-Archer-AX23-v2.patch
+0012-mac80211-ath11k-smaller-TX-completion-ring-in-FW-mem.patch

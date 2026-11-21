@@ -176,6 +176,22 @@ s_dev_patches() {
 	s_board_data
 }
 
+# --resume: apply series patches whose subject is not yet in the tree, in series order.
+# A patch already present is never re-applied; editing an applied patch still needs a full run.
+s_new_patches() {
+	local series="$PROJ/patches/openwrt/series" p subj applied
+	applied=$(git -C "$OWRT" log --format=%s "$OPENWRT_SHA..HEAD")
+	while read -r p; do
+		case "$p" in ''|'#'*) continue ;; esac
+		subj=$(git mailinfo /dev/null /dev/null <"$PROJ/patches/openwrt/$p" | sed -n 's/^Subject: //p')
+		if printf '%s\n' "$applied" | grep -qxF -- "$subj"; then continue; fi
+		echo "== git am (new since last run) $p"
+		git -C "$OWRT" -c user.name=build -c user.email=build@localhost \
+			am --3way --committer-date-is-author-date "$PROJ/patches/openwrt/$p"
+	done <"$series"
+	git -C "$OWRT" log --oneline -3
+}
+
 # Locally supplied, never committed: board-data/board-tplink_archer-ax23-v2.{ipq5018,qcn6122}
 s_board_data() {
 	local bd="$PROJ/board-data" pkg="$OWRT/package/firmware/ipq-wifi-tplink-archer-ax23-v2/files" f
@@ -282,6 +298,7 @@ run_stage 01 deps s_deps
 if [ "$RESUME" = 1 ]; then
 	say "resume: keeping prepared tree $(git -C "$OWRT" log --oneline -1)"
 	git -C "$OWRT" merge-base --is-ancestor "$OPENWRT_SHA" HEAD || die "resume: tree is not based on $OPENWRT_SHA"
+	[ "$VARIANT" = dev ] && run_stage 05a new-patches s_new_patches
 	[ "$VARIANT" = dev ] && run_stage 05b board-data s_board_data
 else
 	run_stage 02 checkout s_checkout

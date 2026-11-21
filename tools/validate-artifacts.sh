@@ -85,6 +85,14 @@ if [ "$VARIANT" = dev ]; then
 	if [ -n "$K" ] && grep -q "ath11k_dp_rx_ring_size" "$K" && [ -f "$O" ] && [ "$O" -nt "$K" ]; then
 		r PASS "ath11k built from patched backports source (FW-mode-2 RX ring sizing)"
 	else r FAIL "ath11k low-memory patch not in built backports source/object"; fi
+	# 961: TX completion ring, its FIFO, wrap macro and IDR range follow one runtime size
+	D="${K%/dp_rx.c}"
+	if [ -n "$K" ] && grep -q "DP_TX_COMP_RING_SIZE_LOWMEM" "$D/dp.h" &&
+	   grep -q "ATH11K_TX_COMPL_NEXT(dp, x)" "$D/dp.h" &&
+	   ! grep -q "DP_TX_IDR_SIZE" "$D/dp_tx.c" &&
+	   [ "$D/dp.o" -nt "$D/dp.h" ] && [ "$D/dp_tx.o" -nt "$D/dp.h" ]; then
+		r PASS "ath11k built with FW-mode-2 TX completion ring sizing (961)"
+	else r FAIL "ath11k TX completion ring patch (961) not in built source/object"; fi
 fi
 
 echo "fails=$FAILS" | tee -a "$OUT"
