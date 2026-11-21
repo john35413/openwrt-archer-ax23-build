@@ -2,6 +2,8 @@
 
 **Codex correction to C1 and section 4.** The AX23 compatible selects qcom_q6v5_mpd.c. Patch 0016 acts on a different driver. Actual MPD recovery and recovery duration require a live event. Capture the driver symlink, state, recovery policy and timestamps passively.
 
+**MPD follow-up ([q6-mpd-recovery-audit.md](q6-mpd-recovery-audit.md)).** MPD has no coredump stall (it registers no dump segments). Its recovery gaps are fixed by **0026**: a root-PD restart now respawns the user PDs, user-PD recovery waits for a pending root-PD recovery, and failed start/load no longer leak the MSA lock or the root-PD reference. SOURCE + SIM. Still UNV on hardware.
+
 Question: once the router boots, what could make it lose Wi-Fi or crash every few
 hours, and what does the image do about it? Labels as in `wifi-root-cause.md`.
 

@@ -167,6 +167,9 @@ n=$(echo "$D" | grep -c "status_fifo is full")
 for rp in /sys/class/remoteproc/remoteproc*; do
 	[ -e "$rp/name" ] || continue
 	r S3.15 INFO "remoteproc $(cat "$rp/name")" "driver=$(readlink -f "$rp/device/driver" 2>/dev/null) state=$(cat "$rp/state" 2>/dev/null) coredump=$(cat "$rp/coredump" 2>/dev/null) recovery=$(cat "$rp/recovery" 2>/dev/null)"
+	# after a crash every PD should be back (held radios under ax23_radios= stay offline)
+	[ "$c" -gt 0 ] && [ "$(cat "$rp/state" 2>/dev/null)" != running ] &&
+		r S3.19 WARN "Q6 PD not running after a crash" "$(cat "$rp/name")=$(cat "$rp/state" 2>/dev/null)"
 done
 for mode in /sys/class/remoteproc/remoteproc*/coredump; do
     [ -r "$mode" ] || continue
@@ -214,7 +217,7 @@ w=$(echo "$D" | grep -ciE "warning|call trace|BUG:|Oops")
 # ---- optional bundle: filtered, redacted kernel log for a remote reviewer ----
 if [ "${1:-}" = "--bundle" ]; then
 	echo "# ---- dmesg (filtered: radios, remoteproc, switch, NAND/UBI, memory, warnings) ----"
-	echo "$D" | grep -iE "ath11k|qmi|remoteproc|q6v5|wcss|rtl83|rtl8365|dsa|uniphy|gmac|eth0|mtd|ubi|nand|oom|out of memory|allocation failure|warning|call trace|bug:|oops|panic|cmdline|memory:" | redact
+	echo "$D" | grep -iE "ath11k|qmi|remoteproc|q6v5|wcss|pd-[0-9]|root PD|user PD|rtl83|rtl8365|dsa|uniphy|gmac|eth0|mtd|ubi|nand|oom|out of memory|allocation failure|warning|call trace|bug:|oops|panic|cmdline|memory:" | redact
 	echo "# ---- /proc/meminfo, /proc/buddyinfo ----"; cat /proc/meminfo /proc/buddyinfo 2>/dev/null
 	echo "# ---- /proc/mtd ----"; cat /proc/mtd 2>/dev/null
 fi

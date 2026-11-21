@@ -79,6 +79,12 @@ if [ "$VARIANT" = dev ]; then
             else r PASS "kernel disables $key"; fi
         done
     else r FAIL "ambiguous or missing kernel configuration"; fi
+    # 0026: Q6 MPD user PDs recover with the root PD; object built from that source
+    M="${configs[0]%/.config}/drivers/remoteproc/qcom_q6v5_mpd"
+    if grep -q "q6_wcss_recover_userpds" "$M.c" 2>/dev/null && [ -f "$M.o" ] && [ "$M.o" -nt "$M.c" ] &&
+       python3 -I "$PROJ/tests/unit/check_mpd_recovery.py" "$M.c" >/dev/null; then
+        r PASS "Q6 MPD built with user-PD recovery and failure unwind (8 recovery scenarios)"
+    else r FAIL "Q6 MPD recovery fix missing from the built kernel or its regression fails"; fi
 fi
 
 # --- ath11k module built with the low-memory patch (dev)

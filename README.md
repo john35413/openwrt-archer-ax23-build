@@ -100,6 +100,7 @@ it is not in this repository. Extract it from your own unit's stock firmware
 | 0023 | qualcommax: preserve AX23 factory regulatory calibration in both ART segments | 0001 caldata fix must not clear per-unit regulatory words from the RAM copy |
 | 0024 | qualcommax: keep IPQ5018 CMN bus clocks alive past initial setup | prevents premature clock disable on the AHB path |
 | 0025 | qualcommax: wait for RTL8367S-VB chip and SerDes reset to settle | applies correct chip/PCS settling intervals for the family-D switch |
+| 0026 | qualcommax: Q6 MPD recovers the user PDs with the root PD | a root-PD restart left both radios down until reboot; failed PD start/load leaked the MSA lock and root reference ([audit](reports/q6-mpd-recovery-audit.md)) |
 
 Board data: `board-data-from-tplink-firmware.sh` packs the EU files under the exact
 variant-qualified keys for the observed OTP board id (255) and the OEM DT selectors
