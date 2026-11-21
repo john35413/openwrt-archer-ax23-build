@@ -7,3 +7,4 @@ unit-bdf-extract	PASS	logs/test-unit-bdf-extract.log
 unit-selfdiag-readonly	PASS	logs/test-unit-selfdiag-readonly.log
 unit-radio-profile	PASS	logs/test-unit-radio-profile.log
 unit-mpd-recovery	PASS	logs/test-unit-mpd-recovery.log
+unit-ath11k-ring-alloc	PASS	logs/test-unit-ath11k-ring-alloc.log

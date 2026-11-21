@@ -96,6 +96,12 @@ if [ "$VARIANT" = dev ]; then
 	if [ -n "$K" ] && grep -q "ath11k_dp_rx_ring_size" "$K" && [ -f "$O" ] && [ "$O" -nt "$K" ]; then
 		r PASS "ath11k built from patched backports source (FW-mode-2 RX ring sizing)"
 	else r FAIL "ath11k low-memory patch not in built backports source/object"; fi
+    # 965: rings are allocated at their exact size (no power-of-two doubling)
+    if [ -n "$K" ] && [ "${K%/dp_rx.c}/dp.o" -nt "${K%/dp_rx.c}/dp.c" ] &&
+       ! grep -q "ring->size = (num_entries \* entry_sz) + HAL_RING_BASE_ALIGN - 1" "${K%/dp_rx.c}/dp.c" &&
+       python3 -I "$PROJ/tests/unit/check_ath11k_ring_alloc.py" "${K%/dp_rx.c}/dp.c" >/dev/null; then
+        r PASS "ath11k DP rings built at exact size (highest ring order 6)"
+    else r FAIL "ath11k DP ring sizing regression or object not rebuilt"; fi
     if [ -n "$K" ] && python3 -I "$PROJ/tests/unit/check_ath11k_cleanup.py" "${K%/dp_rx.c}/dp.c"; then
         r PASS "host allocation regression on prepared ath11k driver source"
     else r FAIL "ath11k partial allocation cleanup regression"; fi

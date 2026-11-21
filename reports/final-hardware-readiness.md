@@ -8,9 +8,9 @@ firmware) is reported as REL, since it is not proven electrically identical to t
 
 ## Deliverable
 `artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb`
-sha256 `b94f64a573a0a664e461f08ec661446da0f5e015ba0235341ef87a030ead5517` (`13,328,708` bytes): patches 0001–0026 plus EU board data
+sha256 `f9aeb6987e5181d191c32b271de9faa890af137b5d01efe740b0f433b0d7c8c4` (`13,329,084` bytes): patches 0001–0027 plus EU board data
 generated from TP-Link's signed 1.2.1 image (local only, not committed). **RAM boot
-only.** Validator: 79 checks PASS, 0 FAIL. `tools/fit-verify.py` confirms the FIT
+only.** Validator: 80 checks PASS, 0 FAIL. `tools/fit-verify.py` confirms the FIT
 hashes and `config@mp02.1`. Board data repacked with 2 explicit variant-qualified keys
 (no unqualified fallback); `board2.py scoped --eu` PASS both radios. Rebuild:
 `tools/bdf/board-data-from-tplink-firmware.sh` then `tools/build-dev.sh --variant dev`.
@@ -31,6 +31,7 @@ hashes and `config@mp02.1`. Board data repacked with 2 explicit variant-qualifie
 | **0024** hold IPQ5018 CMN PLL bus clocks past initial probe | premature clock disable on the AHB path | SRC (Codex) |
 | **0025** wait for RTL8367S-VB chip and SerDes reset to settle | correct chip/PCS settling intervals for the family-D switch | SRC + REL (Codex) |
 | **0026** Q6 MPD recovers user PDs with the root PD; failed start/load unwind | a root-PD restart left both radios down until reboot; leaked MSA lock and root reference | SRC + SIM 8/8 (`q6-mpd-recovery-audit.md`) |
+| **0027** ath11k DP rings at exact size | 7-byte alignment slack doubled every power-of-two ring: ~0.9 MiB contiguous per radio, idle ring order 7, REO dst order 6 | SRC + SIM (`high-order-dma-audit.md`); order-9 link banks unchanged, hardware measurement defined there |
 | Self-diagnostic: UBI-ro, remoteproc/coredump, driver binding, firmware/board lines, slab, `--bundle` | first boot must yield a complete, redacted evidence bundle | BUILD lint + SIM (twin S06, earlier version) |
 | NAND write-path audit | every kernel write path ends at `-EROFS` or does not run in initramfs | SRC/BUILD |
 | Memory budget corrected | link-descriptor banks (2 × order-9 per radio, 8.6 MiB) had been omitted | SRC |

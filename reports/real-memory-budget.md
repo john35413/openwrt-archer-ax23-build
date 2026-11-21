@@ -27,10 +27,13 @@ Per-radio host rings, **before** any client associates:
 | Ring group | Default | 0002 (RX) + 0012 (TX) | Saving |
 |---|---|---|---|
 | RX pre-posted buffers (×~2.8 KiB skb) | ~25 MiB/radio | ~4.6 MiB per radio (RXDMA buf 1024 after 0018; 512 before) | ~41 MiB both |
-| **TX completion ring** DMA (2 MiB) + FIFO kmalloc (1 MiB) | **3 MiB/radio** | **192 KiB/radio** | **~5.6 MiB both** |
-| WBM link-descriptor banks (32768 × 128 B, 2 × order-9 blocks) + idle ring (order-7) | ~4.3 MiB/radio | ~4.3 MiB/radio (unchanged; no reference profile reduces it) | 0 |
-| REO/WBM/TCL fixed rings (REO dst 4×2048, REO status 2048, TCL data 512, …) | ~0.4 MiB/radio | same | 0 |
-| **total host DMA, both radios** | **~65 MiB** | **~19 MiB** | **~46 MiB** |
+| **TX completion ring** DMA + FIFO kmalloc | **3 MiB/radio** (2 MiB block for a 1 MiB ring + 1 MiB FIFO) | **128 KiB/radio** (64 KiB ring after 965 + 64 KiB FIFO) | **~5.7 MiB both** |
+| WBM link-descriptor banks: 32768 × 128 B as 2,097,152 + 2,097,152 + 384 B (two order-9 blocks + one page) | 4 MiB + 4 KiB/radio | same (hardware-legal geometry, kept; see `high-order-dma-audit.md`) | 0 |
+| WBM idle ring (32768 × 8 B = 256 KiB) | 512 KiB/radio (order 7) | 256 KiB/radio (order 6, 965) | 0.5 MiB both |
+| Other fixed rings (REO dst 4 × 128 KiB, REO status 208 KiB, RX release, REO exception, TCL data, RXDMA err/refill/monitor) | 1.4 MiB/radio (power-of-two rings doubled) | 0.84 MiB/radio (965) | ~1.2 MiB both |
+| **total host DMA, both radios** | **~67 MiB** | **~20 MiB** (≈ 21.5 MiB before 965) | **~47 MiB** |
+
+**Correction (high-order DMA audit):** the earlier rows said "~4.3 MiB" for the banks plus idle ring and "~0.4 MiB" for the fixed rings. In the built driver the fixed rings took ~1.4 MiB per radio and the idle ring 512 KiB. `ath11k_dp_srng_setup()` added 7 bytes of alignment slack to every ring, so dma-direct (no IOMMU, no CMA) allocated each power-of-two ring at twice its size. Patch **0027 (ath11k 965)** requests the exact size. The four order-9 link-descriptor blocks are unchanged.
 
 **Correction (adversarial review):** an earlier version of this table omitted the WBM
 link-descriptor banks. They are allocated in `ath11k_dp_alloc()` at firmware-ready
@@ -45,8 +48,10 @@ exactly what `ax23-selfdiag.sh` M.4 (free blocks of order ≥ 8) and M.10/S3.8
 **The allocation-order point matters more than the byte total** (`ath11k-low-memory-analysis.md` §4): the default TX ring needs an **order-9 (2 MiB)
 physically contiguous block per radio at firmware-ready time**. On a fragmented
 256 MiB system that single allocation can fail even with tens of MiB free — the
-`-ENOMEM` other 256 MiB boards hit. 0012 drops it to order-5 (128 KiB). This is why
-the TX-ring change is necessary and not just a nicety.
+`-ENOMEM` other 256 MiB boards hit. 0012 drops it to order-5 (128 KiB), and 965 to
+order-4 (64 KiB). This is why the TX-ring change is necessary and not just a nicety.
+After 0027 the highest-order host allocations per radio are the two order-9 link-descriptor
+banks, then two order-6 blocks (WBM idle ring, REO status).
 
 ## 3. Projected RAM-boot budget (HYP; only hardware confirms)
 
@@ -54,7 +59,7 @@ the TX-ring change is necessary and not just a nicety.
 MemTotal (boot)                                    ≈ 173,056 kB   [3P]
 − initramfs rootfs held in RAM (RAM boot only)     ≈  29,000 kB   [STATIC, artifacts-dev.txt]
 − kernel + base userspace working set              ≈  30,000 kB   [HYP, twin-anchored]
-− ath11k host DMA both radios (0002+0012+0018)     ≈  19,000 kB   [STATIC estimate, incl. 8.6 MiB link descriptors]
+− ath11k host DMA both radios (0002…0018, 0027)    ≈  20,000 kB   [STATIC, incl. 8 MiB link-descriptor banks]
 − conntrack/fw4/dnsmasq/hostapd×4/LuCI peak        ≈  10,000 kB   [HYP, twin-anchored]
 ----------------------------------------------------------------
 ≈ 75–90 MiB MemAvailable idle, both radios up      [HYP; corrected in the adversarial review: link descriptors were omitted before]

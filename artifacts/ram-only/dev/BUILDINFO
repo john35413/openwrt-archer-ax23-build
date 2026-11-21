@@ -1,8 +1,9 @@
 variant=dev
-built=2026-11-21T22:29:13Z
+built=2026-11-21T22:46:46Z
 openwrt=98b1185d039344553aaf8270d0661cfad4f0a54d
 ax23=93028b47d291e251dc108de5fbd8bd3f77a9300c
-build_tree_head=69df21a237ec4a4b6b1d5b09c04fe6b23690fcbd
+build_tree_head=170e8cee73cdc9008ea91705a7b96007baa52cf9
+  170e8cee73 mac80211: ath11k: request exact ring sizes from the DMA allocator
   69df21a237 qualcommax: mpd: recover user PDs with the root PD
   5456e1079f net: dsa: realtek: wait for family D chip reset and SerDes settling
   e75cd8023c clk: qcom: hold the IPQ5018 CMN PLL bus clocks during probe and use

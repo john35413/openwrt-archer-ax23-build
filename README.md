@@ -101,6 +101,7 @@ it is not in this repository. Extract it from your own unit's stock firmware
 | 0024 | qualcommax: keep IPQ5018 CMN bus clocks alive past initial setup | prevents premature clock disable on the AHB path |
 | 0025 | qualcommax: wait for RTL8367S-VB chip and SerDes reset to settle | applies correct chip/PCS settling intervals for the family-D switch |
 | 0026 | qualcommax: Q6 MPD recovers the user PDs with the root PD | a root-PD restart left both radios down until reboot; failed PD start/load leaked the MSA lock and root reference ([audit](reports/q6-mpd-recovery-audit.md)) |
+| 0027 | ath11k: request exact DP ring sizes from the DMA allocator | alignment slack doubled every power-of-two ring (~0.9 MiB contiguous per radio, idle ring order 7); link-descriptor banks unchanged ([audit](reports/high-order-dma-audit.md)) |
 
 Board data: `board-data-from-tplink-firmware.sh` packs the EU files under the exact
 variant-qualified keys for the observed OTP board id (255) and the OEM DT selectors

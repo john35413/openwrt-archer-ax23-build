@@ -99,20 +99,23 @@ driver logic."* We did not copy the upstream profile struct. Instead:
 
 ## 4. Memory effect (BUILD / source-derived; effect HYP for the AX23)
 
-Per radio, from `ath11k_dp_srng_setup()` (2 MiB alignment, no CMA/IOMMU on IPQ5018)
-and the `kmalloc` FIFO (`test_ath11k_rings.py::MemoryAccounting`):
+Per radio, from `ath11k_dp_srng_setup()` and the `kmalloc` FIFO
+(`test_ath11k_rings.py::MemoryAccounting`). No CMA and no IOMMU on IPQ5018, so dma-direct
+allocates `get_order(size)` pages. **Correction:** the doubled ring orders come from the
+7-byte `HAL_RING_BASE_ALIGN - 1` slack ath11k added to every ring, not from 2 MiB alignment.
+Patch 0027 (ath11k 965) removes it (`high-order-dma-audit.md`):
 
 | | DMA ring order/bytes | kmalloc FIFO order/bytes | per radio |
 |---|---|---|---|
-| default 32768 | order-9 / 2 MiB | order-8 / 1 MiB | **3 MiB** |
-| FW mode 2 (0012) 2048 | order-5 / 128 KiB | order-4 / 64 KiB | **192 KiB** |
+| default 32768 (1 MiB ring) | order-9 / 2 MiB (order-8 with 965) | order-8 / 1 MiB | **3 MiB** |
+| FW mode 2 (0012) 2048 (64 KiB ring) | order-5 / 128 KiB → **order-4 / 64 KiB with 965** | order-4 / 64 KiB | **128 KiB** |
 
 **Saving: ~2.8 MiB per radio → ~5.6 MiB for both radios.** More important than the
 byte count is the **allocation order**: the default needs an **order-9 (2 MiB)
 physically contiguous block per radio when the firmware becomes ready** — i.e. after
 userspace has started and memory is fragmented. On a 256 MiB board this can fail
 even when enough total memory is free. 0012 drops the requirement to order-5
-(128 KiB), which a fragmented small system can still satisfy. This is the failure
+(128 KiB), and 965 to order-4 (64 KiB), which a fragmented small system can still satisfy. This is the failure
 mode EX511 v2 and the other 256 MiB boards hit (`cross-device-equivalence.md` §1).
 
 ## 5. Compiled into the AX23 kernel (BUILD)

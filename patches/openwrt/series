@@ -24,3 +24,4 @@
 0024-qualcommax-ipq5018-keep-CMN-bus-clocks.patch
 0025-qualcommax-wait-for-RTL8367S-VB-chip-and-SerDes-reset.patch
 0026-qualcommax-mpd-recover-user-PDs-with-the-root-PD.patch
+0027-mac80211-ath11k-request-exact-ring-sizes-from-the-DMA-allocator.patch
