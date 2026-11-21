@@ -1,5 +1,7 @@
 # Ethernet / RTL8367S-VB initialisation: OEM vs ours vs siblings
 
+**Codex source comparison.** The signed EU DT has two different reset properties. Their physical destinations remain unknown. Keep GPIO 39 pending passive continuity or waveform evidence. Of ten 777 patches in two pinned sibling trees, eight differ in bytes from the project pin and none showed an executable hunk difference. The separate 778 conduit-up change remains a candidate if the trunk reports carrier while dropping frames. See [the patch audit](codex-patch-audit.md) for revisions.
+
 Labels as in `wifi-root-cause.md`. Complements `ethernet-nat-validation.md`.
 
 ## 1. Silicon and topology (AX23 v2)

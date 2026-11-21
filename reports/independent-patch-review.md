@@ -1,5 +1,7 @@
 # Independent (adversarial) review of patches 0001–0018
 
+**Superseding review.** See [the independent Codex audit](codex-patch-audit.md) for all 18 patches. R1 now fails closed on unknown OTP IDs. The board binds MPD, so R2 does not establish a recovery delay here. Patches 0019–0022 close additional cleanup, UBI attach and profile errors. The tables below record the earlier review.
+
 Reviewer stance: assume earlier reports and a green build prove nothing. Each patch
 was re-read against the exact built source (kernel 6.18.55, backports-7.2) and,
 where it exists, the OEM firmware. Labels as in `wifi-root-cause.md`.

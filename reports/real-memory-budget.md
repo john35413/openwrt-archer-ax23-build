@@ -28,13 +28,15 @@ Per-radio host rings, **before** any client associates:
 |---|---|---|---|
 | RX pre-posted buffers (×~2.8 KiB skb) | ~25 MiB/radio | ~4.6 MiB per radio (RXDMA buf 1024 after 0018; 512 before) | ~41 MiB both |
 | **TX completion ring** DMA (2 MiB) + FIFO kmalloc (1 MiB) | **3 MiB/radio** | **192 KiB/radio** | **~5.6 MiB both** |
-| **total host DMA, both radios** | **~56 MiB** | **~9.6 MiB** | **~46 MiB** |
+| **RX + TX subtotal, both radios** | **~56 MiB** | **~9.6 MiB** | **~46 MiB** |
 
 **The allocation-order point matters more than the byte total** (`ath11k-low-memory-analysis.md` §4): the default TX ring needs an **order-9 (2 MiB)
 physically contiguous block per radio at firmware-ready time**. On a fragmented
 256 MiB system that single allocation can fail even with tens of MiB free — the
 `-ENOMEM` other 256 MiB boards hit. 0012 drops it to order-5 (128 KiB). This is why
 the TX-ring change is necessary and not just a nicety.
+
+**Additional WBM descriptor banks (verified by upstream source analysis).** Each radio requests 32768 link descriptors of 128 bytes. The 128-byte alignment allowance and 2 MiB minus 128-byte bank divisor yield requests of 2097152, 2097152 and 384 bytes per radio. Two radios therefore add about 8 MiB before scatter/idle rings, other DMA users or allocator rounding. The first two requests per radio can each need order 9 on a direct allocator using 4 KiB pages. Alignment is 128 bytes; allocation order follows from size. 0019 and 0022 repair failure cleanup, without reducing this requirement.
 
 ## 3. Projected RAM-boot budget (HYP; only hardware confirms)
 
@@ -43,9 +45,10 @@ MemTotal (boot)                                    ≈ 173,056 kB   [3P]
 − initramfs rootfs held in RAM (RAM boot only)     ≈  29,000 kB   [STATIC, artifacts-dev.txt]
 − kernel + base userspace working set              ≈  30,000 kB   [HYP, twin-anchored]
 − ath11k host DMA both radios (0002+0012+0018)     ≈   9,800 kB   [STATIC estimate]
+− WBM link descriptor banks, both radios           ≈   8,200 kB   [source estimate]
 − conntrack/fw4/dnsmasq/hostapd×4/LuCI peak        ≈  10,000 kB   [HYP, twin-anchored]
 ----------------------------------------------------------------
-≈ 85–100 MiB MemAvailable idle, both radios up     [HYP; 0018 costs ~1.4 MiB of it]
+≈ roughly 75–90 MiB MemAvailable idle, both radios up     [HYP; 0018 costs ~1.4 MiB of it]
 A NAND install frees most of the ~29 MiB initramfs share.
 ```
 **Cross-device sanity (REL):** EX511 v2 (256 MiB, mode 2 both radios, but with NSS
@@ -79,7 +82,7 @@ phase and an optional 30-min soak. **What it does and does not show:**
   the AX23's ~173 MiB. A clean pass at ≤176 MiB is **evidence the non-driver memory
   pressure is survivable**; a leak would show as a negative `MemAvailable` slope or
   an OOM line.
-- **Does NOT show:** ath11k/Qualcomm firmware DMA (hwsim has none), so the ~8 MiB of
+- **Does NOT show:** ath11k/Qualcomm firmware DMA (hwsim has none), so the host DMA allocations of
   §2 and the order-9 allocation risk are **absent** from the twin. The twin cannot
   falsify or confirm the driver-memory hypothesis — only the host-stack part.
 
@@ -99,24 +102,20 @@ Results so far (`logs/twin/matrix/summary.tsv`):
   32 MiB of CMA, leaving 46 MiB, less than the compressed image plus the unpacked
   rootfs. This is a twin-kernel artifact (the AX23 kernel has no CMA, and HW-3P AX23
   boots of the same-size initramfs worked). The real lesson: **a RAM boot needs
-  about twice the rootfs size free at unpack time**, which the AX23's ~173 MiB
-  MemTotal covers.
+  space for compressed and expanded data concurrently at unpack time**, the minimum on AX23 remains unmeasured.
 - **200 MiB** (the earlier baseline, not repeated): 48/48 ×3, MemAvailable ≈73 MiB.
 
-So the OpenWrt **host stack** stays responsive and OOM-free at **176 MiB**, below the
-AX23's ~173 MiB MemTotal — evidence that the non-driver memory pressure is survivable.
-This says nothing about the ~8 MiB of ath11k host DMA (§2), which hwsim does not
+So the OpenWrt **host stack** stays responsive and OOM-free at **176 MiB**, above the
+sibling log's 173056 KiB (169 MiB) MemTotal — evidence that the non-driver memory pressure is survivable.
+This says nothing about the additional WBM DMA and the RX/TX subtotal (§2), which hwsim does not
 model; only hardware settles that.
 
 ## 6. The single hardware observation that settles this
 One RAM boot of the dev image, then over SSH (captured by `ax23-selfdiag.sh`):
 ```
 free -m; grep -E 'MemTotal|MemAvailable|Slab' /proc/meminfo     # before `wifi up`
-cat /proc/buddyinfo                                             # orders >=5 free?  (M.3/M.4)
+cat /proc/buddyinfo                                             # orders >=5 and >=9 available?  (M.3/M.4)
 wifi up; sleep 20
 free -m; dmesg | grep -iE 'ath11k|-12|ENOMEM|alloc'             # S3.8 / M.5 / M.6
 ```
-If both radios register (two `fw_build_id`, no `failed to …board…`, no page-allocation
-failure) and MemAvailable stays comfortably positive, the budget is confirmed and the
-memory risk (R1 in `stability-risks.md`) is closed. Until then it is **HYP**, with
-strong REL/SRC support from §2–§3.
+Record allocator snapshots before probe and after each radio registers. One successful startup establishes the result for that boot. Repeat under client traffic and across cold and warm boots to assess fragmentation, peak demand and sustained headroom. The earlier twin numbers are historical simulation results. The checked-in matrix summary records the 176 MiB run; the 160/200 MiB observations are reported elsewhere in the project and were not reproduced by this audit.
