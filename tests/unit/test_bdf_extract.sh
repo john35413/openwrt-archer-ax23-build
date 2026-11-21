@@ -38,5 +38,8 @@ for f in ipq5018:EU/default/lib/firmware/IPQ5018/WIFI_FW/bdwlan.b24 qcn6122:EU/d
 	python3 -I "$PROJ/tools/bdf/board2.py" lookup "$T/out2/board-tplink_archer-ax23-v2.$k" --chip-id 0 --board-id 255 \
 		--variant TP-Link-Archer-AX23-v2 >"$T/l" && grep -q "$(sha256sum "$src" | cut -d' ' -f1)" "$T/l" \
 		&& ok "$k board-2.bin carries the EU source file under the AX23 v2 name" || bad "$k content/name mismatch"
+	python3 -I "$PROJ/tools/bdf/board2.py" robust "$T/out2/board-tplink_archer-ax23-v2.$k" \
+		--stock-board-id "$([ "$k" = ipq5018 ] && echo 36 || echo 96)" | tail -n1 | grep -q "ROBUST$" \
+		&& ok "$k board-2.bin resolves for any OTP board id" || bad "$k resolves only for some OTP board ids"
 done
 exit $rc

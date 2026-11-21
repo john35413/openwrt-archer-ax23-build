@@ -62,6 +62,10 @@ if [ -d "$ROOT" ]; then
 				--variant TP-Link-Archer-AX23-v2 | grep -q "^MATCH .*variant=TP-Link-Archer-AX23-v2$"; then
 				r PASS "$fw board-2.bin contains the AX23 v2 variant"
 			else r FAIL "$fw board-2.bin present but has no AX23 v2 entry"; fi
+			sid=$([ $fw = IPQ5018 ] && echo 36 || echo 96)
+			if python3 -I "$PROJ/tools/bdf/board2.py" robust "$f/board-2.bin" --stock-board-id $sid | tail -n1 | grep -q "ROBUST$"; then
+				r PASS "$fw board-2.bin resolves to one board file for any OTP board id (ath11k lookup chain)"
+			else r FAIL "$fw board-2.bin resolves only for some OTP board ids"; fi
 		else
 			r INFO "$fw board-2.bin ABSENT (no locally supplied board data) -> Wi-Fi BLOCKED, same -12 as baseline"
 		fi

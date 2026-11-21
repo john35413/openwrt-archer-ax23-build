@@ -29,7 +29,19 @@ for t in ubireader_extract_images unsquashfs python3; do
 	command -v $t >/dev/null || { echo "missing $t (pip install ubi_reader; apt install squashfs-tools)"; exit 2; }
 done
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
-NAME="bus=ahb,qmi-chip-id=0,qmi-board-id=255,variant=TP-Link-Archer-AX23-v2"
+# ath11k tries, in order: <bus,chip,board-id>+variant, the same without variant,
+# then "bus=ahb,qmi-chip-id=0", then board.bin (core.c ath11k_core_fetch_bdf).
+# board-id comes from the radio's OTP: 255 (unprogrammed) on the only AX23-firmware
+# unit with logs. Stock never uses the OTP value: it always loads bdwlan.b24
+# (IPQ5018, DT board_id 0x24) and qcn6122/bdwlan.b60 (DT board_id 0x60). So the
+# same data is stored under 255, the stock DT board id, and the chip-id name, and
+# the radios get this board's data whatever their OTP holds. AX23-only package.
+VAR=",variant=TP-Link-Archer-AX23-v2"
+names() {	# names <stock-dt-board-id-decimal>
+	echo "bus=ahb,qmi-chip-id=0,qmi-board-id=255$VAR"
+	echo "bus=ahb,qmi-chip-id=0,qmi-board-id=$1$VAR"
+	echo "bus=ahb,qmi-chip-id=0"
+}
 
 echo "[1/4] UBI volumes in $(basename "$DUMP")"
 ubireader_extract_images -o "$W/ubi" "$DUMP" >/dev/null
@@ -67,8 +79,10 @@ done
 
 echo "[4/4] packing board-2.bin files -> $OUT"
 mkdir -p "$OUT"
-python3 -I "$PROJ/tools/bdf/board2.py" pack "$OUT/board-tplink_archer-ax23-v2.ipq5018" "$NAME=$F2"
-python3 -I "$PROJ/tools/bdf/board2.py" pack "$OUT/board-tplink_archer-ax23-v2.qcn6122" "$NAME=$F5"
+args2=(); while read -r n; do args2+=("$n=$F2"); done < <(names 36)	# 0x24
+args5=(); while read -r n; do args5+=("$n=$F5"); done < <(names 96)	# 0x60
+python3 -I "$PROJ/tools/bdf/board2.py" pack "$OUT/board-tplink_archer-ax23-v2.ipq5018" "${args2[@]}"
+python3 -I "$PROJ/tools/bdf/board2.py" pack "$OUT/board-tplink_archer-ax23-v2.qcn6122" "${args5[@]}"
 { echo "source_dump_sha256=$(sha256sum "$DUMP" | cut -d' ' -f1)"
   echo "ipq5018_src=${F2#$W/}"; echo "qcn6122_src=${F5#$W/}"
   sha256sum "$OUT"/board-tplink_archer-ax23-v2.* | sed "s#$OUT/##"; } | tee "$OUT/PROVENANCE.txt"
