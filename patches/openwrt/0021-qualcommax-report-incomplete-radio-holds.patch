@@ -1,0 +1,78 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: AX23 contributors <ax23@users.noreply.invalid>
+Date: Sat, 21 Nov 2026 21:50:14 +0200
+Subject: [PATCH] qualcommax: report incomplete radio holds and keep sequential
+ startup ordered
+
+---
+ .../base-files/etc/init.d/ax23-radio-seq        | 17 +++++++++++++----
+ .../lib/preinit/08_ax23_radio_profile           | 15 +++++++++++----
+ 2 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/init.d/ax23-radio-seq b/target/linux/qualcommax/ipq50xx/base-files/etc/init.d/ax23-radio-seq
+index b4d8f89..5d12c74 100755
+--- a/target/linux/qualcommax/ipq50xx/base-files/etc/init.d/ax23-radio-seq
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/init.d/ax23-radio-seq
+@@ -1,6 +1,6 @@
+ #!/bin/sh /etc/rc.common
+ # ax23_radios=seq: release the 5 GHz radio once the 2.4 GHz radio has registered
+-# (or after a timeout), so the two Q6 user-PD start-ups do not overlap.
++# A timeout leaves the second radio held for diagnosis.
+ 
+ START=99
+ 
+@@ -16,8 +16,17 @@ boot() {
+ 			done
+ 			sleep 1; n=$((n + 1))
+ 		done
+-		logger -t ax23-radio "2.4 GHz $([ "$n" -lt "$timeout" ] && echo "registered after ${n}s" || echo "not registered after ${timeout}s"); releasing 5 GHz"
+-		echo "" >"$sys/bus/platform/devices/$dev5g/driver_override"
+-		echo "$dev5g" >"$sys/bus/platform/drivers_probe"
++		if [ "$n" -ge "$timeout" ]; then
++			echo "seq timeout: 5 GHz held" >"$state"
++			logger -t ax23-radio "2.4 GHz phy absent after ${timeout}s; keeping 5 GHz held"
++			exit 0
++		fi
++		if echo "" >"$sys/bus/platform/devices/$dev5g/driver_override" &&
++		   echo "$dev5g" >"$sys/bus/platform/drivers_probe"; then
++			logger -t ax23-radio "requested 5 GHz probe after 2.4 GHz phy registration"
++		else
++			echo "seq reprobe failed" >"$state"
++			logger -t ax23-radio "5 GHz release or probe failed"
++		fi
+ 	) &
+ }
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/lib/preinit/08_ax23_radio_profile b/target/linux/qualcommax/ipq50xx/base-files/lib/preinit/08_ax23_radio_profile
+index 3f6a37f..17a3c52 100644
+--- a/target/linux/qualcommax/ipq50xx/base-files/lib/preinit/08_ax23_radio_profile
++++ b/target/linux/qualcommax/ipq50xx/base-files/lib/preinit/08_ax23_radio_profile
+@@ -12,7 +12,7 @@
+ ax23_radio_profile() {
+ 	local sys="${AX23_SYSFS:-/sys}" cmdline="${AX23_CMDLINE:-/proc/cmdline}"
+ 	local state="${AX23_STATE:-/tmp/ax23_radio_profile}"
+-	local p="both" w dev
++	local p="both" w dev dir failed=""
+ 	local dev2g="c000000.wifi" dev5g="b00a040.wifi"
+ 
+ 	[ "${AX23_BOARD:-$(board_name)}" = "tplink,archer-ax23-v2" ] || return 0
+@@ -29,10 +29,17 @@ ax23_radio_profile() {
+ 		echo both >"$state"; return 0 ;;
+ 	esac
+ 	for dev in "$@"; do
+-		# "none" matches no driver, so the device stays unbound
+-		[ -w "$sys/bus/platform/devices/$dev/driver_override" ] && \
+-			echo none >"$sys/bus/platform/devices/$dev/driver_override"
++		dir="$sys/bus/platform/devices/$dev"
++		if [ ! -w "$dir/driver_override" ] || ! echo none >"$dir/driver_override" ||
++		   [ "$(cat "$dir/driver_override")" != none ] || [ -L "$dir/driver" ]; then
++			failed="$failed $dev"
++		fi
+ 	done
++	if [ -n "$failed" ]; then
++		echo "incomplete $p:$failed" >"$state"
++		echo "ax23: could not confirm radio hold:$failed" >/dev/kmsg 2>/dev/null
++		return 0
++	fi
+ 	echo "$p" >"$state"
+ 	echo "ax23: radio profile '$p' (held: $*)" >/dev/kmsg 2>/dev/null
+ 	return 0

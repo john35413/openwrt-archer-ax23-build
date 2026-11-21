@@ -7,21 +7,12 @@
 set -u
 PROJ="$(cd "$(dirname "$0")/../.." && pwd)"
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
-# The scripts under test are taken from the committed patch 0017 (build/ is git-ignored).
-P=$(ls "$PROJ"/patches/openwrt/0017-*.patch 2>/dev/null | head -1)
-[ -n "$P" ] || { echo "SKIP no patch 0017"; exit 77; }
-SRC="$T/src"
-python3 -I - "$P" "$SRC" <<'PY'
-import os, re, sys
-patch, out = sys.argv[1], sys.argv[2]
-text = open(patch).read()
-for m in re.finditer(r"^diff --git a/(\S+) b/\S+\nnew file mode \d+\n(?:index .*\n)?--- /dev/null\n\+\+\+ b/\S+\n@@[^\n]*@@\n((?:\+[^\n]*\n)*)", text, re.M):
-    path, body = m.group(1), m.group(2)
-    rel = path.split("ipq50xx/base-files/", 1)[1]
-    dst = os.path.join(out, rel); os.makedirs(os.path.dirname(dst), exist_ok=True)
-    open(dst, "w").write("".join(l[1:] + "\n" for l in body.splitlines()))
-PY
-[ -f "$SRC/lib/preinit/08_ax23_radio_profile" ] && [ -f "$SRC/etc/init.d/ax23-radio-seq" ] || { echo "FAIL could not extract scripts from $P"; exit 1; }
+# Replay the profile patches into the disposable fixture.
+B=target/linux/qualcommax/ipq50xx/base-files
+SRC="$T/$B"
+for p in "$PROJ"/patches/openwrt/{0017,0021}-*.patch; do
+	(cd "$T" && git apply --include="$B/*" "$p") || exit 1
+done
 rc=0; ok() { echo "PASS $*"; }; bad() { echo "FAIL $*"; rc=1; }
 setup() {
 	rm -rf "$T/sys"; for d in c000000.wifi b00a040.wifi; do
@@ -60,4 +51,18 @@ mkdir -p "$T/sys/bus/platform/devices/c000000.wifi/ieee80211/phy0"
 for _ in $(seq 1 10); do [ -s "$T/sys/bus/platform/drivers_probe" ] && break; sleep 1; done
 [ -z "$(held)" ] && [ "$(cat "$T/sys/bus/platform/drivers_probe")" = b00a040.wifi ] \
 	&& ok "seq: 5 GHz released and probed after the 2.4 GHz phy registered ($(cat "$T/log" 2>/dev/null))" || bad "seq did not release 5 GHz"
+setup "ax23_radios=none"
+rm "$T/sys/bus/platform/devices/b00a040.wifi/driver_override"
+run_preinit tplink,archer-ax23-v2
+grep -q '^incomplete none: b00a040.wifi$' "$T/state" && ok "missing hold reported" || bad "missing hold hidden"
+setup "ax23_radios=2g"
+ln -s "$T" "$T/sys/bus/platform/devices/b00a040.wifi/driver"
+run_preinit tplink,archer-ax23-v2
+grep -q '^incomplete 2g' "$T/state" && ok "already-bound radio reported" || bad "bound radio hidden"
+setup "ax23_radios=seq"; run_preinit tplink,archer-ax23-v2
+( logger() { :; }
+  export AX23_SYSFS="$T/sys" AX23_STATE="$T/state" AX23_SEQ_TIMEOUT=0
+  . "$SRC/etc/init.d/ax23-radio-seq"; boot; wait )
+[ "$(held)" = b00a040.wifi ] && [ ! -s "$T/sys/bus/platform/drivers_probe" ] &&
+	grep -q '^seq timeout' "$T/state" && ok "timeout keeps 5 GHz held" || bad "timeout overlapped startup"
 exit $rc
