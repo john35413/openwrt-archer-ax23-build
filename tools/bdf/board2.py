@@ -16,9 +16,7 @@ Subcommands
   pack   OUT NAME=FILE [NAME=FILE...] build a board-2.bin
   names  --chip-id N --board-id N [--variant V] [--bus ahb]
                                       print the names ath11k will try
-  robust FILE --stock-board-id N [--variant V]
-                                      run ath11k's lookup chain for OTP board ids
-                                      255, N and others; all must hit the same data
+  scoped FILE --stock-board-id N     validate exact AX23 variant entries and payload
 
 This tool never fabricates board data: `pack` only wraps files you give it.
 """
@@ -37,11 +35,13 @@ def _align4(n):
 
 
 def _ies(buf, off, end):
-    while end - off > 8:
+    while off < end:
+        if end - off < 8:
+            raise ValueError("truncated IE header")
         ie_id, ie_len = struct.unpack_from("<II", buf, off)
         off += 8
-        if end - off < _align4(ie_len) and end - off < ie_len:
-            raise ValueError(f"truncated IE id={ie_id} len={ie_len} at {off-8:#x}")
+        if end - off < _align4(ie_len):
+            raise ValueError(f"truncated IE id={ie_id} at {off-8:#x}")
         yield ie_id, buf[off:off + ie_len]
         off += _align4(ie_len)
 
@@ -108,7 +108,7 @@ def main(argv=None):
         p.add_argument("--board-id", type=int, required=True)
         p.add_argument("--variant", default="")
     p = sp.add_parser("pack"); p.add_argument("out"); p.add_argument("pairs", nargs="+")
-    p = sp.add_parser("robust"); p.add_argument("file")
+    p = sp.add_parser("scoped"); p.add_argument("file")
     p.add_argument("--stock-board-id", type=int, required=True)
     p.add_argument("--variant", default="TP-Link-Archer-AX23-v2")
     p.add_argument("--bus", default="ahb")
@@ -130,22 +130,17 @@ def main(argv=None):
         return 0
 
     entries = parse(open(a.file, "rb").read())
-    if a.cmd == "robust":
-        # OTP board-id is unknown until the unit boots: 255 seen on the only logged
-        # unit, the stock DT id, and arbitrary programmed values must all resolve.
-        ids = sorted({255, a.stock_board_id, 0, 1, 7, 128, 254})
-        shas, ok = set(), True
-        for bid in ids:
-            hit, data = lookup(entries, candidate_names(a.bus, 0, bid, a.variant))
-            if hit is None:
-                print(f"FAIL board-id {bid}: no entry, ath11k would fail"); ok = False; continue
-            sha = hashlib.sha256(data).hexdigest()
-            shas.add(sha)
-            print(f"ok   board-id {bid:3d} -> {hit}  sha256 {sha[:16]}")
-        if len(shas) > 1:
-            print("FAIL lookups resolve to DIFFERENT data"); ok = False
-        print("RESULT:", "ROBUST" if ok else "NOT ROBUST")
-        return 0 if ok else 1
+    if a.cmd == "scoped":
+        expected = {candidate_names(a.bus, 0, bid, a.variant)[0]
+                    for bid in (255, a.stock_board_id)}
+        boards = [(name, data) for kind, name, data in entries if kind == IE_BOARD]
+        if (len(boards) != len(expected) or {name for name, _ in boards} != expected
+                or any(len(data) != 131072 for _, data in boards)
+                or len({data for _, data in boards}) != 1):
+            print("FAIL: expected two exact AX23 keys with identical 128 KiB payloads")
+            return 1
+        print("PASS: exact AX23 keys and matching board payloads")
+        return 0
     if a.cmd == "list":
         for top_id, name, data in entries:
             kind = "BOARD" if top_id == IE_BOARD else "REGDB"

@@ -34,13 +34,12 @@ W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
 # board-id comes from the radio's OTP: 255 (unprogrammed) on the only AX23-firmware
 # unit with logs. Stock never uses the OTP value: it always loads bdwlan.b24
 # (IPQ5018, DT board_id 0x24) and qcn6122/bdwlan.b60 (DT board_id 0x60). So the
-# same data is stored under 255, the stock DT board id, and the chip-id name, and
-# the radios get this board's data whatever their OTP holds. AX23-only package.
+# The logged 255 and per-radio stock IDs are the supported candidates for this
+# bring-up image. Unknown OTPs require board/revision evidence before use.
 VAR=",variant=TP-Link-Archer-AX23-v2"
 names() {	# names <stock-dt-board-id-decimal>
 	echo "bus=ahb,qmi-chip-id=0,qmi-board-id=255$VAR"
 	echo "bus=ahb,qmi-chip-id=0,qmi-board-id=$1$VAR"
-	echo "bus=ahb,qmi-chip-id=0"
 }
 
 echo "[1/4] UBI volumes in $(basename "$DUMP")"

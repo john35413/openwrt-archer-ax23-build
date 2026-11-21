@@ -26,29 +26,24 @@ ubootenv = load("ubootenv", "tools/uboot/ubootenv.py")
 AX23 = "bus=ahb,qmi-chip-id=0,qmi-board-id=255,variant=TP-Link-Archer-AX23-v2"
 
 
-class Board2Robust(unittest.TestCase):
-    """The OTP board id is unknown until the unit boots: the packed board-2.bin
-    must resolve to the same data for any value via ath11k's lookup chain."""
-    def _run(self, blob, stock):
-        with tempfile.NamedTemporaryFile(suffix=".bin") as f:
-            f.write(blob); f.flush()
-            return board2.main(["robust", f.name, "--stock-board-id", str(stock)])
-
-    def test_single_255_entry_is_not_robust(self):
-        self.assertEqual(self._run(board2.pack([(AX23, os.urandom(4096))]), 36), 1)
-
-    def test_three_names_same_data_is_robust(self):
-        d = os.urandom(4096)
-        v = ",variant=TP-Link-Archer-AX23-v2"
-        blob = board2.pack([(AX23, d), ("bus=ahb,qmi-chip-id=0,qmi-board-id=36" + v, d),
-                            ("bus=ahb,qmi-chip-id=0", d)])
-        self.assertEqual(self._run(blob, 36), 0)
-
-    def test_different_data_under_names_is_rejected(self):
-        v = ",variant=TP-Link-Archer-AX23-v2"
-        blob = board2.pack([(AX23, os.urandom(4096)), ("bus=ahb,qmi-chip-id=0", os.urandom(4096)),
-                            ("bus=ahb,qmi-chip-id=0,qmi-board-id=36" + v, os.urandom(4096))])
-        self.assertEqual(self._run(blob, 36), 1)
+class Board2Scope(unittest.TestCase):
+    def test_scope_for_each_radio(self):
+        data = bytes(131072)
+        for sid in (36, 96):
+            exact = [(AX23, data), (AX23.replace("255", str(sid)), data)]
+            for pairs, valid in ((exact, True), (exact[:1], False),
+                                 (exact + [("bus=ahb,qmi-chip-id=0", data)], False),
+                                 (exact + exact[:1], False),
+                                 ([exact[0], (exact[1][0], bytes([1])*131072)], False)):
+                with self.subTest(sid=sid, keys=[k for k, _ in pairs]):
+                    with tempfile.NamedTemporaryFile() as f:
+                        f.write(board2.pack(pairs))
+                        f.flush()
+                        rc = board2.main(["scoped", f.name, "--stock-board-id", str(sid)])
+                        self.assertEqual(rc == 0, valid)
+            entries = board2.parse(board2.pack(exact))
+            for bid, variant in [(7, "TP-Link-Archer-AX23-v2"), (sid, "Other"), (255, "")]:
+                self.assertIsNone(board2.lookup(entries, board2.candidate_names("ahb", 0, bid, variant))[0])
 
 
 class Board2(unittest.TestCase):
