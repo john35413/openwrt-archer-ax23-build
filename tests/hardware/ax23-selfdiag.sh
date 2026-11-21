@@ -69,7 +69,7 @@ if [ -d /sys/class/mtd ]; then
 			r S1.8 FAIL "mtd $n writable" "size=$s flags=$f"
 		fi
 	done
-	[ "$seen" -ge 16 ] || r S1.9 FAIL "incomplete MTD inventory" "$seen nodes"
+	[ "$seen" -eq 16 ] || r S1.9 FAIL "unexpected MTD inventory" "$seen nodes"
 else r S1.8 FAIL "mtd sysfs" "no /sys/class/mtd"; fi
 grep -q "ubi" /proc/mounts && r S1.10 INFO "UBI-backed mounts" "$(grep ubi /proc/mounts | awk '{print $2":"$3":"$4}')" || r S1.10 INFO "UBI-backed mounts" "none"
 grep -q " /tmp/tp_data " /proc/mounts && { grep -q " /tmp/tp_data .* ro[, ]" /proc/mounts \
@@ -132,9 +132,25 @@ echo "$D" | grep -E "ath11k.*fw_build_id" | while read -r x; do r S3.5 INFO "ath
 echo "$D" | grep -iE "ath11k.*(FW memory mode|Multipd|hw1.0)" | head -6 | while read -r x; do r S3.6 INFO "ath11k probe" "$x"; done
 echo "$D" | grep -q "regd update : -22\|failed register the radio" && r S3.7 FAIL "regulatory init" "regd update failed (EX511 v2 saw this with a stock 5 GHz BDF)" \
 	|| r S3.7 PASS "no regd update failure" ""
-echo "$D" | grep -iE "ath11k.*(-12|-ENOMEM|failed to set ?up|failed to alloc|qmi failed memory)" | head -4 | while read -r x; do r S3.8 FAIL "ath11k allocation/setup failure" "$x"; done
-nphy=$(ls /sys/class/ieee80211 2>/dev/null | wc -l)
-[ "$nphy" -ge 2 ] && r S3.9 PASS "both radios registered" "$(ls /sys/class/ieee80211 | tr '\n' ' ')" || r S3.9 FAIL "radios registered" "$nphy"
+alloc_errors=$(echo "$D" | grep -iE "ath11k.*(-12|-ENOMEM|failed to set ?up|failed to alloc|qmi failed memory)" | head -4)
+[ -z "$alloc_errors" ] || r S3.8 FAIL "ath11k allocation/setup failure" "$alloc_errors"
+profile=$(cat /tmp/ax23_radio_profile 2>/dev/null)
+for dev in c000000.wifi b00a040.wifi; do
+    registered=0
+    for ph in "/sys/bus/platform/devices/$dev"/ieee80211/phy*; do
+        [ -e "$ph" ] && registered=1
+    done
+    case "$profile:$dev" in
+        none:*|2g:b00a040.wifi|5g:c000000.wifi) expected=0 ;;
+        both:*|seq:*|2g:c000000.wifi|5g:b00a040.wifi) expected=1 ;;
+        *) r S3.9 FAIL "radio profile missing or incomplete" "$profile"; break ;;
+    esac
+    if [ "$registered" = "$expected" ]; then
+        r S3.9 PASS "$dev matches profile $profile" "registered=$registered"
+    else
+        r S3.9 FAIL "$dev differs from profile $profile" "registered=$registered expected=$expected"
+    fi
+done
 for phd in /sys/class/ieee80211/*; do
 	[ -e "$phd" ] || continue; ph=${phd##*/}
 	band=$(iw phy "$ph" info 2>/dev/null | grep -qE "2412(\.0)? MHz" && echo 2.4G || echo 5G)
@@ -150,11 +166,16 @@ n=$(echo "$D" | grep -c "status_fifo is full")
 [ "$n" -eq 0 ] && r S3.14 PASS "no TX completion FIFO-full warnings" "0" || r S3.14 WARN "TX completion FIFO-full warnings" "$n (see 961)"
 for rp in /sys/class/remoteproc/remoteproc*; do
 	[ -e "$rp/name" ] || continue
-	r S3.15 INFO "remoteproc $(cat "$rp/name")" "state=$(cat "$rp/state" 2>/dev/null) coredump=$(cat "$rp/coredump" 2>/dev/null) recovery=$(cat "$rp/recovery" 2>/dev/null)"
+	r S3.15 INFO "remoteproc $(cat "$rp/name")" "driver=$(readlink -f "$rp/device/driver" 2>/dev/null) state=$(cat "$rp/state" 2>/dev/null) coredump=$(cat "$rp/coredump" 2>/dev/null) recovery=$(cat "$rp/recovery" 2>/dev/null)"
 done
-c=$(grep -l . /sys/class/remoteproc/remoteproc*/coredump 2>/dev/null | xargs grep -lx inline 2>/dev/null | wc -l)
-[ "$c" -eq 0 ] && r S3.16 PASS "no remoteproc holds recovery for an inline coredump (0016)" "" \
-	|| r S3.16 WARN "remoteproc coredump=inline" "$c: a Q6 crash would keep the radios down until the 5 min devcoredump timeout"
+for mode in /sys/class/remoteproc/remoteproc*/coredump; do
+    [ -r "$mode" ] || continue
+    if [ "$(cat "$mode")" = inline ]; then
+        r S3.16 WARN "inline remoteproc coredump policy" "$mode"
+    else
+        r S3.16 INFO "remoteproc coredump policy" "$mode=$(cat "$mode")"
+    fi
+done
 for d in c000000.wifi b00a040.wifi; do
 	o=$(cat /sys/bus/platform/devices/$d/driver_override 2>/dev/null)
 	b=$(basename "$(readlink /sys/bus/platform/devices/$d/driver 2>/dev/null)" 2>/dev/null)

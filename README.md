@@ -11,7 +11,7 @@ hardware test plan for OpenWrt on the **TP-Link Archer AX23 v2.0** (Qualcomm IPQ
 > `reports/nand-boot-safety.md`). The AX23 **v1** (MediaTek) is a different
 > device; nothing here applies to it.
 
-Start with **`reports/final-validation.md`**: validation matrix, decision, next steps.
+Start with [the Codex handover](reports/CODEX_HANDOVER.md) for the current source revision, RAM image status and hardware gates. The [independent audit](reports/codex-patch-audit.md) covers the original 18 patches and subsequent corrections.
 
 ## Layout
 
