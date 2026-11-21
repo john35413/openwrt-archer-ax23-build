@@ -11,6 +11,7 @@
 #     data, never their contents
 # Usage from the PC (output stays on the PC):
 #   ssh root@192.168.1.1 sh -s < tests/hardware/ax23-selfdiag.sh > selfdiag-$(date +%Y%m%d-%H%M%S).txt
+#   ssh root@192.168.1.1 sh -s -- --bundle < tests/hardware/ax23-selfdiag.sh > bundle.txt   # + filtered dmesg
 # Output: one line per check, "ID<TAB>STATUS<TAB>check<TAB>evidence",
 # STATUS = PASS / FAIL / WARN / BLOCKED / INFO, then a per-stage summary.
 # See reports/physical-hardware-test-plan.md for what each stage gates.
@@ -79,6 +80,19 @@ if have fw_printenv && [ -s /etc/fw_env.config ]; then
 	fw_printenv >/dev/null 2>&1 && r S1.13 INFO "u-boot env CRC" "valid" || r S1.13 INFO "u-boot env CRC" "not valid (U-Boot uses built-in defaults)"
 else r S1.12 INFO "u-boot env" "fw_printenv or /etc/fw_env.config absent"; fi
 
+r S1.14 INFO "device tree model" "$(tr -d '\0' </proc/device-tree/model 2>/dev/null)"
+nub=0; nro=0
+for u in /sys/class/ubi/ubi[0-9]*; do
+	case "$u" in *_*) continue ;; esac
+	[ -e "$u/mtd_num" ] || continue
+	nub=$((nub+1))
+	m=$(cat "$u/mtd_num"); f=$(cat /sys/class/mtd/mtd$m/flags 2>/dev/null)
+	[ $(( ${f:-0} & 0x400 )) -eq 0 ] && nro=$((nro+1))
+done
+[ "$nub" -eq "$nro" ] && r S1.15 PASS "every attached UBI sits on a read-only MTD (UBI ro_mode)" "$nub attached, $nro read-only" \
+	|| r S1.15 FAIL "UBI attached on a writeable MTD" "$nub attached, only $nro read-only: STOP"
+r S1.16 INFO "radio bring-up profile (ax23_radios=)" "$(cat /tmp/ax23_radio_profile 2>/dev/null || echo 'unset (both)')"
+
 # ---- Stage 2: wired networking --------------------------------------------
 l=$(echo "$D" | grep -m1 "found an RTL8367S")
 case "$l" in *RTL8367S-VB*) r S2.1 PASS "switch probed as RTL8367S-VB" "$l" ;; "") r S2.1 FAIL "switch probe" "no rtl8365mb probe line" ;; *) r S2.1 WARN "switch family" "$l" ;; esac
@@ -130,6 +144,20 @@ c=$(echo "$D" | grep -ciE "firmware crashed|fatal error received|q6v5.*fatal|rpr
 [ "$c" -eq 0 ] && r S3.13 PASS "no Q6/WCSS firmware crash" "0" || r S3.13 FAIL "Q6/WCSS firmware crash" "$c events"
 n=$(echo "$D" | grep -c "status_fifo is full")
 [ "$n" -eq 0 ] && r S3.14 PASS "no TX completion FIFO-full warnings" "0" || r S3.14 WARN "TX completion FIFO-full warnings" "$n (see 961)"
+for rp in /sys/class/remoteproc/remoteproc*; do
+	[ -e "$rp/name" ] || continue
+	r S3.15 INFO "remoteproc $(cat "$rp/name")" "state=$(cat "$rp/state" 2>/dev/null) coredump=$(cat "$rp/coredump" 2>/dev/null) recovery=$(cat "$rp/recovery" 2>/dev/null)"
+done
+c=$(grep -l . /sys/class/remoteproc/remoteproc*/coredump 2>/dev/null | xargs grep -lx inline 2>/dev/null | wc -l)
+[ "$c" -eq 0 ] && r S3.16 PASS "no remoteproc holds recovery for an inline coredump (0016)" "" \
+	|| r S3.16 WARN "remoteproc coredump=inline" "$c: a Q6 crash would keep the radios down until the 5 min devcoredump timeout"
+for d in c000000.wifi b00a040.wifi; do
+	o=$(cat /sys/bus/platform/devices/$d/driver_override 2>/dev/null)
+	b=$(basename "$(readlink /sys/bus/platform/devices/$d/driver 2>/dev/null)" 2>/dev/null)
+	r S3.17 INFO "wifi device $d" "driver=${b:-unbound} override=${o:-none-set}"
+done
+echo "$D" | grep -E "ath11k.*(firmware request|failed to fetch|board name|qmi failed|chip_id|fw_build_id)" | head -12 | \
+	while read -r x; do r S3.18 INFO "ath11k firmware/board request" "$x"; done
 
 # ---- Memory (all stages) --------------------------------------------------
 for k in MemTotal MemFree MemAvailable Buffers Cached Shmem Slab SUnreclaim KernelStack PageTables; do
@@ -146,6 +174,9 @@ echo "$D" | grep -qE "Out of memory|oom-kill" && r M.5 FAIL "no OOM kills" "see 
 echo "$D" | grep -qE "page allocation failure" && r M.6 WARN "page allocation failures" "$(echo "$D" | grep -m2 'page allocation failure')" || r M.6 PASS "no page allocation failures" ""
 r M.7 INFO "coherent pool" "$(tr ' ' '\n' </proc/cmdline | grep coherent_pool)"
 r M.8 INFO "reserved (no-map) regions" "$(ls /proc/device-tree/reserved-memory 2>/dev/null | tr '\n' ' ')"
+grep -E "^(kmalloc-(8k|4k|2k|1k)|skbuff_head_cache|kmalloc-rcl|names_cache|dentry|inode_cache) " /proc/slabinfo 2>/dev/null | \
+	awk '{printf "%s=%dKiB ", $1, $3*$4/1024}' | while read -r x; do r M.9 INFO "largest slab caches" "$x"; done
+r M.10 INFO "page allocation failure / Order lines" "$(echo "$D" | grep -cE 'page allocation failure|order:[5-9]')"
 
 # ---- Health ---------------------------------------------------------------
 for t in /sys/class/thermal/thermal_zone*; do [ -f "$t/temp" ] && r H.1 INFO "thermal $(cat $t/type)" "$(cat $t/temp) mC"; done
@@ -155,5 +186,12 @@ r H.4 INFO "processes" "$(ls -d /proc/[0-9]* | wc -l)"
 w=$(echo "$D" | grep -ciE "warning|call trace|BUG:|Oops")
 [ "$w" -eq 0 ] && r H.5 PASS "no kernel WARN/Oops/BUG" "0" || r H.5 WARN "kernel WARN/Oops/BUG lines" "$w (attach dmesg)"
 
+# ---- optional bundle: filtered, redacted kernel log for a remote reviewer ----
+if [ "${1:-}" = "--bundle" ]; then
+	echo "# ---- dmesg (filtered: radios, remoteproc, switch, NAND/UBI, memory, warnings) ----"
+	echo "$D" | grep -iE "ath11k|qmi|remoteproc|q6v5|wcss|rtl83|rtl8365|dsa|uniphy|gmac|eth0|mtd|ubi|nand|oom|out of memory|allocation failure|warning|call trace|bug:|oops|panic|cmdline|memory:" | redact
+	echo "# ---- /proc/meminfo, /proc/buddyinfo ----"; cat /proc/meminfo /proc/buddyinfo 2>/dev/null
+	echo "# ---- /proc/mtd ----"; cat /proc/mtd 2>/dev/null
+fi
 echo "# summary: FAIL=$FAILS WARN=$WARNS BLOCKED=$BLOCKS"
-echo "# gate: Stage 1 needs S1.* PASS; Stage 2 needs S2.1/S2.2/S2.4 PASS; Stage 3 needs S3.4/S3.7/S3.9/S3.13 PASS and no S3.8 lines"
+echo "# gate: Stage 1 needs S1.* PASS (incl. S1.15 UBI read-only); Stage 2 needs S2.1/S2.2/S2.4 PASS; Stage 3 needs S3.4/S3.7/S3.9/S3.13 PASS and no S3.8 lines"

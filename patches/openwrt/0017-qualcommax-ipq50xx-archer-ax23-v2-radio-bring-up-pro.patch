@@ -1,0 +1,105 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: AX23_V2_OPENWRT <ax23-v2-openwrt@users.noreply.invalid>
+Date: Sat, 21 Nov 2026 18:53:23 +0000
+Subject: [PATCH] qualcommax: ipq50xx: archer-ax23-v2: radio bring-up profiles
+
+The first hardware boot has to tell apart a firmware/board-data problem
+of one radio, a problem of the other, and a memory problem that only
+appears when both Q6 user-PDs and their ath11k host rings start at once.
+Add a kernel command line switch, read in preinit before kmodloader loads
+ath11k_ahb:
+
+  ax23_radios=both (default) | none | 2g | 5g | seq
+
+It sets driver_override = "none" on the Wi-Fi platform device(s) to hold
+back (c000000.wifi = IPQ5018 2.4 GHz, b00a040.wifi = QCN6122 5 GHz), so
+ath11k never binds them. "seq" holds the 5 GHz radio until the 2.4 GHz
+phy has registered (or 90 s) and then releases and probes it
+(/etc/init.d/ax23-radio-seq), separating the two firmware start-ups.
+
+Only sysfs is written; nothing persists. Without the option, or on any
+other board, nothing changes. Choose it for one RAM boot at the U-Boot
+prompt: setenv bootargs "${bootargs} ax23_radios=2g" (no saveenv).
+---
+ .../base-files/etc/init.d/ax23-radio-seq      | 23 +++++++++++
+ .../lib/preinit/08_ax23_radio_profile         | 41 +++++++++++++++++++
+ 2 files changed, 64 insertions(+)
+ create mode 100755 target/linux/qualcommax/ipq50xx/base-files/etc/init.d/ax23-radio-seq
+ create mode 100644 target/linux/qualcommax/ipq50xx/base-files/lib/preinit/08_ax23_radio_profile
+
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/etc/init.d/ax23-radio-seq b/target/linux/qualcommax/ipq50xx/base-files/etc/init.d/ax23-radio-seq
+new file mode 100755
+index 0000000000..b4d8f89bf5
+--- /dev/null
++++ b/target/linux/qualcommax/ipq50xx/base-files/etc/init.d/ax23-radio-seq
+@@ -0,0 +1,23 @@
++#!/bin/sh /etc/rc.common
++# ax23_radios=seq: release the 5 GHz radio once the 2.4 GHz radio has registered
++# (or after a timeout), so the two Q6 user-PD start-ups do not overlap.
++
++START=99
++
++boot() {
++	local sys="${AX23_SYSFS:-/sys}" state="${AX23_STATE:-/tmp/ax23_radio_profile}"
++	local dev5g="b00a040.wifi" n=0 ph timeout="${AX23_SEQ_TIMEOUT:-90}"
++
++	[ "$(cat "$state" 2>/dev/null)" = seq ] || return 0
++	(
++		while [ "$n" -lt "$timeout" ]; do
++			for ph in "$sys"/bus/platform/devices/c000000.wifi/ieee80211/phy*; do
++				[ -e "$ph" ] && break 2
++			done
++			sleep 1; n=$((n + 1))
++		done
++		logger -t ax23-radio "2.4 GHz $([ "$n" -lt "$timeout" ] && echo "registered after ${n}s" || echo "not registered after ${timeout}s"); releasing 5 GHz"
++		echo "" >"$sys/bus/platform/devices/$dev5g/driver_override"
++		echo "$dev5g" >"$sys/bus/platform/drivers_probe"
++	) &
++}
+diff --git a/target/linux/qualcommax/ipq50xx/base-files/lib/preinit/08_ax23_radio_profile b/target/linux/qualcommax/ipq50xx/base-files/lib/preinit/08_ax23_radio_profile
+new file mode 100644
+index 0000000000..3f6a37f07f
+--- /dev/null
++++ b/target/linux/qualcommax/ipq50xx/base-files/lib/preinit/08_ax23_radio_profile
+@@ -0,0 +1,41 @@
++# Archer AX23 v2 bring-up: choose which ath11k radios may bind, from the kernel
++# command line, before kmodloader loads ath11k_ahb (/etc/init.d/boot).
++#   ax23_radios=both (default) | none | 2g | 5g | seq
++# "seq" binds the 2.4 GHz radio first and the 5 GHz radio only after the first
++# one has registered (/etc/init.d/ax23-radio-seq), to separate the two firmware
++# start-ups and their memory peaks. Uses driver_override (sysfs, RAM only):
++# nothing is written to flash and the next boot without the option is normal.
++# Set it at the U-Boot prompt for one RAM boot only (no saveenv):
++#   setenv bootargs "${bootargs} ax23_radios=2g"; tftpboot ...; bootm ...
++# AX23_SYSFS / AX23_CMDLINE / AX23_STATE override paths for the unit test.
++
++ax23_radio_profile() {
++	local sys="${AX23_SYSFS:-/sys}" cmdline="${AX23_CMDLINE:-/proc/cmdline}"
++	local state="${AX23_STATE:-/tmp/ax23_radio_profile}"
++	local p="both" w dev
++	local dev2g="c000000.wifi" dev5g="b00a040.wifi"
++
++	[ "${AX23_BOARD:-$(board_name)}" = "tplink,archer-ax23-v2" ] || return 0
++
++	for w in $(cat "$cmdline" 2>/dev/null); do
++		case "$w" in ax23_radios=*) p="${w#ax23_radios=}" ;; esac
++	done
++	case "$p" in
++	both)	echo both >"$state"; return 0 ;;
++	none)	set -- "$dev2g" "$dev5g" ;;
++	2g|seq)	set -- "$dev5g" ;;
++	5g)	set -- "$dev2g" ;;
++	*)	echo "ax23_radios=$p unknown, using both" >/dev/kmsg 2>/dev/null
++		echo both >"$state"; return 0 ;;
++	esac
++	for dev in "$@"; do
++		# "none" matches no driver, so the device stays unbound
++		[ -w "$sys/bus/platform/devices/$dev/driver_override" ] && \
++			echo none >"$sys/bus/platform/devices/$dev/driver_override"
++	done
++	echo "$p" >"$state"
++	echo "ax23: radio profile '$p' (held: $*)" >/dev/kmsg 2>/dev/null
++	return 0
++}
++
++boot_hook_add preinit_main ax23_radio_profile
