@@ -19,3 +19,4 @@
 0019-mac80211-ath11k-unwind-the-requested-descriptor-banks.patch
 0020-qualcommax-ax23-skip-implicit-ubi-attach.patch
 0021-qualcommax-report-incomplete-radio-holds.patch
+0022-mac80211-ath11k-unwind-partial-dp-startup.patch
