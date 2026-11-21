@@ -1,8 +1,12 @@
 variant=dev
-built=2026-11-21T15:24:23Z
+built=2026-11-21T16:49:43Z
 openwrt=98b1185d039344553aaf8270d0661cfad4f0a54d
 ax23=93028b47d291e251dc108de5fbd8bd3f77a9300c
-build_tree_head=1b4307e4d1a041c551a46f5fb81a3c3c0ce10953
+build_tree_head=0b25ecfe1e4121aedd6a172edf806e90de8dc335
+  0b25ecfe1e qualcommax: ipq50xx: archer-ax23-v2: make every partition read-only
+  dd37b930ca mac80211: backport ath11k and mac80211 fixes from OpenWrt main
+  95b9414690 mac80211: ath11k/ath12k: backport mac_phy_caps stride fix
+  e859b85265 mac80211: ath11k: smaller TX completion ring in FW memory mode 2
   1b4307e4d1 uboot-envtools: qualcommax: add Archer AX23 v2
   4e744d767a wifi-scripts: do not let another radio's '00' country break hostapd
   99f0859a47 qualcommax: ipq50xx: program the UNIPHY at gmac probe
