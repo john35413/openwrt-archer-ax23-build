@@ -26,9 +26,9 @@ Per-radio host rings, **before** any client associates:
 
 | Ring group | Default | 0002 (RX) + 0012 (TX) | Saving |
 |---|---|---|---|
-| RX pre-posted buffers (×~2.8 KiB skb) | ~25 MiB/radio | ~3.2 MiB (IPQ5018) / ~4.6 MiB (QCN6122) | ~42 MiB both |
+| RX pre-posted buffers (×~2.8 KiB skb) | ~25 MiB/radio | ~4.6 MiB per radio (RXDMA buf 1024 after 0018; 512 before) | ~41 MiB both |
 | **TX completion ring** DMA (2 MiB) + FIFO kmalloc (1 MiB) | **3 MiB/radio** | **192 KiB/radio** | **~5.6 MiB both** |
-| **total host DMA, both radios** | **~56 MiB** | **~8.2 MiB** | **~48 MiB** |
+| **total host DMA, both radios** | **~56 MiB** | **~9.6 MiB** | **~46 MiB** |
 
 **The allocation-order point matters more than the byte total** (`ath11k-low-memory-analysis.md` §4): the default TX ring needs an **order-9 (2 MiB)
 physically contiguous block per radio at firmware-ready time**. On a fragmented
@@ -42,10 +42,10 @@ the TX-ring change is necessary and not just a nicety.
 MemTotal (boot)                                    ≈ 173,056 kB   [3P]
 − initramfs rootfs held in RAM (RAM boot only)     ≈  29,000 kB   [STATIC, artifacts-dev.txt]
 − kernel + base userspace working set              ≈  30,000 kB   [HYP, twin-anchored]
-− ath11k host DMA both radios (0002+0012)          ≈   8,200 kB   [STATIC estimate]
+− ath11k host DMA both radios (0002+0012+0018)     ≈   9,800 kB   [STATIC estimate]
 − conntrack/fw4/dnsmasq/hostapd×4/LuCI peak        ≈  10,000 kB   [HYP, twin-anchored]
 ----------------------------------------------------------------
-≈ 85–100 MiB MemAvailable idle, both radios up     [HYP]
+≈ 85–100 MiB MemAvailable idle, both radios up     [HYP; 0018 costs ~1.4 MiB of it]
 A NAND install frees most of the ~29 MiB initramfs share.
 ```
 **Cross-device sanity (REL):** EX511 v2 (256 MiB, mode 2 both radios, but with NSS
@@ -90,8 +90,18 @@ Results so far (`logs/twin/matrix/summary.tsv`):
   LuCI/DNS/DHCP churn) held with **0% LAN ping loss, 0 OOM, 0 kernel error**, and
   reboot recovery in 111 s. (This run predated the memory-sampler fix, so its
   per-10 s `MemAvailable` trend/slope was not captured; later runs record it.)
-- **128/160/200 MiB discrete:** see the file for pass/fail, min `MemAvailable`,
-  load-phase slope (kB/h — a near-zero slope means no leak) and OOM-line count.
+- **160 MiB:** **49/49 PASS**, MemAvailable 33.8 MiB at steady state, minimum
+  27.7 MiB under load, 0 OOM. The −65 MB/h "slope" covers only the 3-minute load
+  window and reflects buffers filling as load starts, not a leak; leak detection
+  needs the long soak with the (now fixed) sampler.
+- **128 MiB:** the twin kernel **panics while unpacking its initramfs**
+  (`do_populate_rootfs: write error`), because the armsr twin kernel reserves
+  32 MiB of CMA, leaving 46 MiB, less than the compressed image plus the unpacked
+  rootfs. This is a twin-kernel artifact (the AX23 kernel has no CMA, and HW-3P AX23
+  boots of the same-size initramfs worked). The real lesson: **a RAM boot needs
+  about twice the rootfs size free at unpack time**, which the AX23's ~173 MiB
+  MemTotal covers.
+- **200 MiB** (the earlier baseline, not repeated): 48/48 ×3, MemAvailable ≈73 MiB.
 
 So the OpenWrt **host stack** stays responsive and OOM-free at **176 MiB**, below the
 AX23's ~173 MiB MemTotal — evidence that the non-driver memory pressure is survivable.

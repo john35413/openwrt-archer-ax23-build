@@ -50,6 +50,12 @@ lacks the shifter parts.)
 3. Power-cycle returns to stock from NAND (nothing was written).
 - **Gate:** kernel boots, login prompt. `bootm` hash/format error or panic →
   power-cycle, stop.
+- **Radio isolation (only if the Wi-Fi gate below fails):** add one profile to the
+  kernel command line at the U-Boot prompt before `bootm`, for that boot only (no
+  `saveenv`): `setenv bootargs "${bootargs} ax23_radios=none"`, then `2g`, `5g`,
+  `seq`. Patch 0017 holds the other radio back from ath11k in RAM, so each boot
+  isolates one radio's firmware/board data and the memory peak of a simultaneous
+  start (`ath11k-final-hardware-readiness.md` §3).
 
 ## Stage 3 — Read-only self-diagnostic and acceptance (no writes)
 Over SSH from the LAN PC (keys only), **read-only**:
@@ -74,6 +80,12 @@ Check the gate lines the self-diagnostic prints:
 - **Soak:** `soak-monitor.sh` for 24–48 h (MemAvailable slope, OOM count, FW crashes).
 - **Reboot:** 20× cold + 20× warm, trunk + both radios + LAN→WAN each time (catches
   the cold-boot trunk race, `cross-device-equivalence.md` §2.3).
+- **Bundle for remote review:** `ssh root@192.168.1.1 sh -s -- --bundle <
+  tests/hardware/ax23-selfdiag.sh > bundle.txt` (filtered, redacted dmesg + meminfo +
+  buddyinfo + /proc/mtd; nothing written on the router).
+- **Switch reset line (optional, owner-approved, after the above is green):**
+  `oem-openwrt-differential-analysis.md` §3: read GPIO 26/39 states, then try the
+  GPIO-26 variant image and repeat the 20× boot test on both.
 - **Gate:** all of the above green. **This is the full RAM-boot acceptance.** If any
   Wi-Fi gate fails, the root-cause map in `wifi-root-cause.md` §6 says what next;
   **do not proceed to Stage 4+.**
