@@ -67,6 +67,20 @@ if [ -d "$ROOT" ]; then
 	du -sk "$ROOT" | awk '{print "INFO rootfs size " $1 " KiB"}' | tee -a "$OUT"
 else r FAIL "rootfs staging dir not found"; fi
 
+if [ "$VARIANT" = dev ]; then
+    configs=("$OWRT"/build_dir/target-*/linux-qualcommax_ipq50xx/linux-[0-9]*/.config)
+    if [ "${#configs[@]}" -eq 1 ] && [ -r "${configs[0]}" ]; then
+        for key in MTD_OF_PARTS QCOM_Q6V5_MPD; do
+            grep -qx "CONFIG_$key=y" "${configs[0]}" && r PASS "kernel enables $key" || r FAIL "missing $key"
+        done
+        for key in MTD_PARTITIONED_MASTER MTD_CMDLINE_PARTS DEVMEM SPI_SPIDEV; do
+            if grep -Eq "^CONFIG_$key=[ym]$" "${configs[0]}"; then
+                r FAIL "kernel exposes $key"
+            else r PASS "kernel disables $key"; fi
+        done
+    else r FAIL "ambiguous or missing kernel configuration"; fi
+fi
+
 # --- ath11k module built with the low-memory patch (dev)
 if [ "$VARIANT" = dev ]; then
 	# OpenWrt builds ath11k from backports (mac80211-*/backports-*), not from
@@ -76,7 +90,10 @@ if [ "$VARIANT" = dev ]; then
 	if [ -n "$K" ] && grep -q "ath11k_dp_rx_ring_size" "$K" && [ -f "$O" ] && [ "$O" -nt "$K" ]; then
 		r PASS "ath11k built from patched backports source (FW-mode-2 RX ring sizing)"
 	else r FAIL "ath11k low-memory patch not in built backports source/object"; fi
-	# 961: TX completion ring, its FIFO, wrap macro and IDR range follow one runtime size
+    if [ -n "$K" ] && python3 -I "$PROJ/tests/unit/check_ath11k_cleanup.py" "${K%/dp_rx.c}/dp.c"; then
+        r PASS "host allocation regression on prepared ath11k driver source"
+    else r FAIL "ath11k partial allocation cleanup regression"; fi
+    # 961: TX completion ring, its FIFO, wrap macro and IDR range follow one runtime size
 	D="${K%/dp_rx.c}"
 	if [ -n "$K" ] && grep -q "DP_TX_COMP_RING_SIZE_LOWMEM" "$D/dp.h" &&
 	   grep -q "ATH11K_TX_COMPL_NEXT(dp, x)" "$D/dp.h" &&

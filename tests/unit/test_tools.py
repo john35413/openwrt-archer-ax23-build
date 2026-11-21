@@ -139,7 +139,10 @@ class FitBootPath(unittest.TestCase):
                 (d / name).write_bytes(data)
                 digest = hashlib.sha256(data).hexdigest()
                 return f'{name} {{ type="{kind}"; compression="{comp}"; data=/incbin/("{name}"); {extra} hash {{ algo="sha256"; value=[{digest}]; }}; }};'
-            packed = lzma.compress(b"kernel fixture", format=lzma.FORMAT_ALONE)
+            header = bytearray(64)
+            struct.pack_into("<QQ", header, 8, 0, 4096)
+            header[56:60] = b"ARM\x64"
+            packed = lzma.compress(header, format=lzma.FORMAT_ALONE)
             nodes = image("kernel", "kernel", "lzma", packed,
                           "load=<0x41000000>; entry=<0x41000000>;")
             nodes += image("first", "flat_dt", "none", b"unused")

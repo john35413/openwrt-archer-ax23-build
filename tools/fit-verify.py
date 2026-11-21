@@ -117,6 +117,12 @@ def ram_boot_payloads(blob, config):
     image = decoder.decompress(kernel["data"], max_length=limit + 1)
     if not image or not decoder.eof or len(image) > limit:
         raise ValueError("truncated kernel or decompression extends into the FIT")
+    # arm64/booting.rst: image_size includes the kernel's working extent.
+    if len(image) < 64 or image[56:60] != b"ARM\x64":
+        raise ValueError("selected payload lacks the arm64 Image header")
+    text_offset, effective_size = struct.unpack_from("<QQ", image, 8)
+    if not 0 < effective_size <= limit or (load - text_offset) % (2 << 20):
+        raise ValueError("arm64 effective size or load alignment conflicts with RAM boot")
     if fit_base + len(blob) > 0x4b000000:
         raise ValueError("FIT overlaps Q6 reservation")
     return fdt["data"], image
