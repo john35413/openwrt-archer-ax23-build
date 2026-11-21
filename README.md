@@ -11,8 +11,7 @@ hardware test plan for OpenWrt on the **TP-Link Archer AX23 v2.0** (Qualcomm IPQ
 > `reports/nand-boot-safety.md`). The AX23 **v1** (MediaTek) is a different
 > device; nothing here applies to it.
 
-Start with **`reports/final-hardware-readiness.md`** (latest decision and the 15 answers), then
-`reports/physical-hardware-test-plan.md` for the bench procedure.
+Start with [the Codex handover](reports/CODEX_HANDOVER.md) for the current source revision, RAM image status and hardware gates. The [independent audit](reports/codex-patch-audit.md) covers all 25 patches. The [final hardware readiness](reports/final-hardware-readiness.md) report and `reports/physical-hardware-test-plan.md` describe the bench procedure.
 
 ## Layout
 
@@ -94,10 +93,18 @@ it is not in this repository. Extract it from your own unit's stock firmware
 | 0016 | wcss-sec: no inline coredump (main `b97760cbc9`) | a Q6 firmware crash otherwise kept both radios down for the 5-minute devcoredump timeout |
 | 0017 | `ax23_radios=none/2g/5g/both/seq` bring-up profiles | isolate each radio and the simultaneous start-up memory peak on the first hardware boot (RAM/sysfs only) |
 | 0018 | ath11k RX rings follow the reference low-memory profiles | 0002 had two unreferenced values (IPQ5018 RX buffers 512, RXDMA error ring 128) |
+| 0019 | ath11k: unwind the requested descriptor banks on partial allocation failure | frees the correct per-radio arrays instead of the global WBM array |
+| 0020 | qualcommax: AX23 skip implicit UBI attachment on the unused data partition | prevents unintended probe of a non-essential partition |
+| 0021 | qualcommax: report incomplete AX23 radio holds and preserve sequential bring-up on timeout | a failed 2.4 GHz start no longer releases the 5 GHz hold |
+| 0022 | ath11k: unwind partial DP startup — WBM idle ring and earlier TX FIFOs | releases pre-allocated WBM idle ring and TX status FIFOs on failure |
+| 0023 | qualcommax: preserve AX23 factory regulatory calibration in both ART segments | 0001 caldata fix must not clear per-unit regulatory words from the RAM copy |
+| 0024 | qualcommax: keep IPQ5018 CMN bus clocks alive past initial setup | prevents premature clock disable on the AHB path |
+| 0025 | qualcommax: wait for RTL8367S-VB chip and SerDes reset to settle | applies correct chip/PCS settling intervals for the family-D switch |
 
-Board data: `board-data-from-tplink-firmware.sh` packs the EU files under the observed OTP
-board id (255), the OEM DT ids (0x24/0x60) and ath11k's chip-id fallback, so the radios
-find them whatever their OTP holds (`board2.py robust` gates the build).
+Board data: `board-data-from-tplink-firmware.sh` packs the EU files under the exact
+variant-qualified keys for the observed OTP board id (255) and the OEM DT selectors
+(36/96). Unknown OTP values require a matching explicit key (`board2.py scoped --eu`
+gates the build).
 
 ## Pinned sources
 

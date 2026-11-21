@@ -26,3 +26,5 @@ feed_packages=a16d10144dd3f854a57d9a512dfa84f990b45d65
 feed_luci=4bc2f85da82894c6a5d28ab1b610ca6e6ffc29ba
 feed_routing=4b9891b9136259f93294a424507ed24c5e8c1cbd
 host=Linux 6.18.44-fc-v726 x86_64 gcc=13.3.0
+# NOTE: patches 0019-0025 added after this build; rebuild required for the current series.
+# Rebuild: tools/bdf/board-data-from-tplink-firmware.sh && tools/build-dev.sh --variant dev
