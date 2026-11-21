@@ -93,6 +93,21 @@ Throughput figures come from an *emulated* CPU (QEMU TCG on x86) and simulated r
 | S03 | PASS | hostapd still running |  |
 | S04 | PASS | 3 min mixed wired+Wi-Fi load: router responsive | LAN ping loss 0%, 2.4G client still online |
 | S05 | PASS | reboot: LAN, WAN and both radios come back | 116 s |
+| S06 | PASS | ax23-selfdiag.sh completes under BusyBox, no side effects, MACs redacted | 64 lines |
+| S07 | INFO | memory over the run: min MemAvailable, slope during load, OOM/alloc-fail lines | per run, see results.tsv |
+
+### Low-memory matrix and self-diagnostic (final phase)
+
+`tests/twin/memory-matrix.sh` reruns the full set at several router RAM sizes and an
+optional 30-min soak, sampling MemAvailable every 10 s with a LuCI/DNS/DHCP-churned
+load phase (`logs/twin/matrix/summary.tsv`). **This stresses the OpenWrt
+userspace+kernel memory path only — mac80211_hwsim has no firmware DMA, so it does
+NOT model the ath11k ring memory of `real-memory-budget.md`.** S06 additionally runs
+the read-only hardware self-diagnostic (`tests/hardware/ax23-selfdiag.sh`) inside the
+twin to prove it completes under BusyBox ash with config/UCI/mounts/modules/links
+unchanged and no un-redacted MAC in its output (it is not an AX23, so its
+board-specific checks FAIL/WARN there by design — only completion and side-effects
+are asserted).
 
 
 ## Bugs found by the twin
