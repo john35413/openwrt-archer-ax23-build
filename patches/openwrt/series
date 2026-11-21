@@ -21,3 +21,5 @@
 0021-qualcommax-report-incomplete-radio-holds.patch
 0022-mac80211-ath11k-unwind-partial-dp-startup.patch
 0023-qualcommax-preserve-AX23-factory-regulatory-calibration.patch
+0024-qualcommax-ipq5018-keep-CMN-bus-clocks.patch
+0025-qualcommax-wait-for-RTL8367S-VB-chip-and-SerDes-reset.patch

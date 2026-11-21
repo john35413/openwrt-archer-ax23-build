@@ -1,0 +1,47 @@
+From 51c98b855482e5e577369206e82f12c628a20940 Mon Sep 17 00:00:00 2001
+From: Codex <codex@users.noreply.github.com>
+Date: Sat, 21 Nov 2026 22:19:38 +0200
+Subject: [PATCH] net: dsa: realtek: wait for family D chip reset and SerDes
+ settling
+
+---
+ ...ltek-wait-for-family-D-reset-and-pll.patch | 30 +++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+ create mode 100644 target/linux/qualcommax/patches-6.18/0997-net-dsa-realtek-wait-for-family-D-reset-and-pll.patch
+
+diff --git a/target/linux/qualcommax/patches-6.18/0997-net-dsa-realtek-wait-for-family-D-reset-and-pll.patch b/target/linux/qualcommax/patches-6.18/0997-net-dsa-realtek-wait-for-family-D-reset-and-pll.patch
+new file mode 100644
+index 0000000..c9d6182
+--- /dev/null
++++ b/target/linux/qualcommax/patches-6.18/0997-net-dsa-realtek-wait-for-family-D-reset-and-pll.patch
+@@ -0,0 +1,30 @@
++Subject: net: dsa: realtek: wait for family D chip reset and SerDes settling
++
++Adapt the documented one-second chip reset and vendor 98 ms post-BMCR delay from the related RTL8367S change by Stanislaw Pal. The family-D path uses the same two-phase BMCR reset on SDS13. Preserve the existing register sequences, external GPIO and other switch families.
++Source: https://github.com/Gameplayer-1-8/openwrt/commit/e839879dda243b
++
++--- a/drivers/net/dsa/realtek/rtl8365mb_main.c
+++++ b/drivers/net/dsa/realtek/rtl8365mb_main.c
++@@ -1716,6 +1716,10 @@
++ 	if (ret)
++ 		return ret;
++ 
+++	/* Allow the SerDes PLL to settle after the BMCR datapath reset. */
+++	if (is_d)
+++		usleep_range(98000, 98500);
+++
++ 	/* Keep SGMII in-band autonegotiation disabled: the link parameters are
++ 	 * forced from rtl8365mb_pcs_link_up() instead (family C), or from
++ 	 * mac_link_up() (family D).
++@@ -3621,7 +3625,10 @@
++ 	/* Realtek documentation says the chip needs 1 second to reset. Sleep
++ 	 * for 100 ms before accessing any registers to prevent ACK timeouts.
++ 	 */
++-	msleep(100);
+++	if (rtl8365mb_get_family(priv) == RTL8365MB_FAMILY_D)
+++		msleep(1000);
+++	else
+++		msleep(100);
++ 	return regmap_read_poll_timeout(priv->map, RTL8365MB_CHIP_RESET_REG, val,
++ 					!(val & RTL8365MB_CHIP_RESET_HW_MASK),
++ 					20000, 1e6);
