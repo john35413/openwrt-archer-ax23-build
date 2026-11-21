@@ -17,3 +17,4 @@
 0017-qualcommax-ipq50xx-archer-ax23-v2-radio-bring-up-pro.patch
 0018-mac80211-ath11k-low-memory-RX-rings-follow-the-refer.patch
 0019-mac80211-ath11k-unwind-the-requested-descriptor-banks.patch
+0020-qualcommax-ax23-skip-implicit-ubi-attach.patch

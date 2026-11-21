@@ -174,6 +174,17 @@ class DtbChecker(unittest.TestCase):
         self.assertIn("FAIL partition 0:ART read-only", r.stdout)
         self.assertIn("PASS partition 0:ART offset/size", r.stdout)
 
+    def test_extra_unlabelled_partition(self):
+        checker = load("dtb_checker", "tests/static/check_dtb.py")
+        parts = "".join(f'partition@{off:x} {{ label="{name}"; reg=<0x{off:x} 0x{size:x}>; read-only; }};'
+                        for name, (off, size) in checker.EXPECTED.items())
+        result = self.run_check(parts + 'partition@7e40000 { reg=<0x7e40000 0x20000>; };')
+        self.assertIn("FAIL exactly 16 physical partition nodes", result.stdout)
+
+    def test_q6_wrong_address_correct_size(self):
+        r = self.run_check('wcss@4b000000 { reg=<0x0 0x45000000 0x0 0x3000000>; };')
+        self.assertIn("FAIL q6 region", r.stdout)
+
     def test_overlap_detected(self):
         text = ('/ {\npartition@0 { label = "a"; reg = <0x0 0x200000>; read-only; };\n'
                 'partition@100000 { label = "b"; reg = <0x100000 0x100000>; read-only; };\n};\n')

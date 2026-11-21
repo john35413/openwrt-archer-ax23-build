@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: AX23 contributors <ax23@users.noreply.invalid>
+Date: Sat, 21 Nov 2026 21:49:27 +0200
+Subject: [PATCH] qualcommax: skip implicit UBI data attach on the AX23 RAM
+ development target
+
+---
+ ...plicit-attach-on-AX23-development-image.patch | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+ create mode 100644 target/linux/qualcommax/patches-6.18/0999-ubi-skip-implicit-attach-on-AX23-development-image.patch
+
+diff --git a/target/linux/qualcommax/patches-6.18/0999-ubi-skip-implicit-attach-on-AX23-development-image.patch b/target/linux/qualcommax/patches-6.18/0999-ubi-skip-implicit-attach-on-AX23-development-image.patch
+new file mode 100644
+index 0000000..5ecdd35
+--- /dev/null
++++ b/target/linux/qualcommax/patches-6.18/0999-ubi-skip-implicit-attach-on-AX23-development-image.patch
+@@ -0,0 +1,16 @@
++Subject: ubi: skip implicit data volume attach on the AX23 development target
++
++The development image boots from RAM. The explicit read-only factory-data
++attach in preinit still runs. Keep the normal policy on all other boards.
++
++--- a/drivers/mtd/ubi/build.c
+++++ b/drivers/mtd/ubi/build.c
++@@ -1282,5 +1282,8 @@
++ 	char magic[4];
++ 
+++	if (of_machine_is_compatible("tplink,archer-ax23-v2"))
+++		return;
+++
++ 	/* try attaching mtd device named "ubi" or "data" */
++ 	mtd = open_mtd_device("ubi");
++ 	if (IS_ERR(mtd))

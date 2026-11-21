@@ -91,7 +91,9 @@ def main():
     check("compatible", re.search(r'compatible = "tplink,archer-ax23-v2(\\0|")', text) is not None)
 
     parts = {}
-    for _, body in nodes(text, r"partition@[0-9a-f]+"):
+    partitions = list(nodes(text, r"partition@[0-9a-f]+"))
+    check("exactly 16 physical partition nodes", len(partitions) == len(EXPECTED))
+    for _, body in partitions:
         label = prop(body, "label")
         reg = cells(prop(body, "reg") or "")
         if label and len(reg) == 2:
@@ -131,7 +133,7 @@ def main():
 
     q6 = [cells(prop(b, "reg") or "") for n, b in nodes(text, r"(?:q6|wcss)[-_a-z0-9]*@4b000000")]
     check("q6 region 0x4b000000+0x3000000 (covers bdf/m3 addrs)",
-          any(c[-2:] == [0x4b000000, 0x3000000] or c[-1:] == [0x3000000] for c in q6), str(q6))
+          any(c in ([0x4b000000, 0x3000000], [0, 0x4b000000, 0, 0x3000000]) for c in q6), str(q6))
 
     trig = {}
     for name, body in nodes(text, r"led-wifi-[25]g"):
