@@ -1,8 +1,9 @@
 variant=dev
-built=2026-11-21T14:33:34Z
+built=2026-11-21T15:24:23Z
 openwrt=98b1185d039344553aaf8270d0661cfad4f0a54d
 ax23=93028b47d291e251dc108de5fbd8bd3f77a9300c
-build_tree_head=4e744d767ab2caf325933f0d800aae351a9610a8
+build_tree_head=1b4307e4d1a041c551a46f5fb81a3c3c0ce10953
+  1b4307e4d1 uboot-envtools: qualcommax: add Archer AX23 v2
   4e744d767a wifi-scripts: do not let another radio's '00' country break hostapd
   99f0859a47 qualcommax: ipq50xx: program the UNIPHY at gmac probe
   dc30e77638 qualcommax: pcs-qca-uniphy: fix macro and clock callback slips

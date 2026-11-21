@@ -107,3 +107,49 @@ If you need a reliable Wi-Fi 6 router now, or you don't want to open the case an
 wires, **return it** and buy a device with official OpenWrt support. If you want to take part in the
 bring-up and accept UART work, **keep it**. The path is concrete, and your unit would be the first EU
 AX23 v2 tested. Opening the case may void the warranty and makes a return impossible.
+
+---
+
+## Update 2026-11-21 (second investigation): blockers, root causes, Go/No-Go
+
+New primary evidence: TP-Link's GPL source for this model (U-Boot) and all four official
+firmware images (signatures verified with TP-Link's own public keys). Details:
+`wifi-root-cause.md`, `boot-nand-feasibility.md`, `ethernet-nat-validation.md`, `stability-risks.md`.
+
+Current RAM-boot image: `artifacts/ram-only/dev/…initramfs-uImage.itb`, sha256
+`3bc04b192a06e11f7597d72c80cf777f467bd7239c243e70e13d5f8491d0544f` — patches 0001-0011 **plus the
+EU board data** generated from the official firmware (proprietary data: image kept local, not
+committed; reproduce with `tools/bdf/board-data-from-tplink-firmware.sh` + `tools/build-dev.sh`).
+
+### Decision table
+
+| Component | Current evidence | Exact remaining blocker | Fix implemented / proposed | Validation still required | Risk | Confidence |
+|---|---|---|---|---|---|---|
+| Wi-Fi 2.4 GHz | `-12` = missing board file (STATIC, full path traced; 3P log). EU board data from official FW, region-selected like stock (STATIC). DTS = stock pd1/mem-mode 2 (STATIC) | none known offline | board-2.bin in image; 0001, 0002, 0010 | one RAM boot: dmesg shows fw_build_id, no fetch errors; AP + clients | medium (memory, FW 2.7 vs stock 2.5) | moderate: every known cause addressed; no HW run |
+| Wi-Fi 5 GHz | same; stock uses userpd2 + board_id 0x60 = our pd2 (STATIC); userpd2 reached QMI on HW (3P) | none known offline | same | same + 5 GHz throughput/overflow | medium | moderate |
+| WPA2/WPA3, guest/IoT | QEMU 48/48 ×3; profile DHCP bug fixed | radios on HW | 0010, profile fix | HW-13…HW-17, HW-22 | low once radios up | high for config, none for HW |
+| Switch / LAN / WAN / NAT | 3P: client NAT + browsing, 5/5 boots (v0.5-test) | our exact build not run on HW | 0006-0009 (#26597) | HW-03…HW-11, HW-26 | low-medium | moderate-high |
+| VLAN / firewall | QEMU (fw4 of the image) | switch VLAN table on HW | — | HW-22 | low-medium | moderate |
+| VPN / SQM / Pi integration | packages/configs exist; CAKE works in simulation | not on HW | optional profile | after base validation | low | moderate |
+| Memory/stability | 173 MiB available pre-Wi-Fi (3P); RX rings reduced | real FW + driver usage unknown | 0002 | `free`, 24/48 h soak | **medium-high** (the main long-term risk) | low-moderate |
+| RAM boot | 3P: UART + TFTP works | needs 1.8 V UART | — | first boot | low | high |
+| Ethernet-only RAM boot | not possible (STATIC: autoboot runs only bootipq) | inherent | — | — | — | high |
+| UART-free stock recovery | in TP-Link U-Boot source: reset-held HTTP recovery, signed plaintext images (STATIC) | not observed on HW | documented passive test | passive test §4 of boot report | low | moderate |
+| Persistent install | design only; env layout now verified (0011) | UART, backup, recovery drill | interlock 0005 | items 1-7 in boot report §6 | high until validated | n/a |
+| UART-free OpenWrt install | impossible without an exploit (signatures enforced in web UI and U-Boot; STATIC) | inherent | — | — | — | high |
+
+### Verdict: **CONDITIONAL GO**
+
+The device can realistically become a stable OpenWrt router: the wired path has third-party
+hardware proof of working NAT, the Wi-Fi blocker is understood and addressed with the
+manufacturer's own board data, and a UART-free *stock* recovery exists in the vendor's
+bootloader source. Conditions (all mandatory):
+1. The owner accepts **opening the case and using a 1.8 V-safe UART** — there is no
+   UART-free way to boot or install OpenWrt on this model (vendor-signature enforced).
+2. The first RAM boot shows both radios initialising (single observation in `wifi-root-cause.md` §7).
+3. The passive reset-held recovery test shows the U-Boot HTTP recovery page.
+4. Memory stays healthy in a 24 h soak with both radios loaded.
+
+**If condition 1 is unacceptable (owner's stated preference: no UART), the answer is NO-GO
+for this owner** → return the router while it is unopened and buy a model with official
+OpenWrt support and a UART-free install path.

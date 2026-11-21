@@ -62,6 +62,11 @@ WSL2 was not available in this environment, so these WSL steps have not been tes
 
 ### Wi-Fi board data (required for Wi-Fi)
 
+Quickest: `tools/bdf/board-data-from-tplink-firmware.sh` downloads TP-Link's official
+AX23 v2 firmware, verifies TP-Link's RSA signature, and extracts the EU board files exactly
+as the stock firmware selects them (see `reports/wifi-root-cause.md`). Alternatively, use the
+read-only NAND route below.
+
 No AX23 v2 board data exists in any public source, and it is proprietary, so
 it is not in this repository. Extract it from your own unit's stock firmware
 (read-only), following `tests/hardware/HARDWARE-TEST-PLAN.md` §2 and §4, into
@@ -78,6 +83,7 @@ it is not in this repository. Extract it from your own unit's stock firmware
 | 0005 | sysupgrade refused on AX23 v2 | it fell through to `default_do_upgrade` |
 | 0006-0009 | upstream UNIPHY fixes incl. PR #26597 (cherry-picked with `-x`) | cold-boot 2.5G trunk training race |
 | 0010 | wifi-scripts: another radio's `00` country no longer breaks hostapd | found by the digital twin: no AP started |
+| 0011 | uboot-envtools entry (env layout from TP-Link's GPL U-Boot) | read-only `fw_printenv tp_boot_idx` diagnostics |
 
 ## Pinned sources
 

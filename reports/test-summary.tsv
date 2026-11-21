@@ -1,1 +1,4 @@
-static	PASS	logs/test-static.log
+unit-python	PASS	logs/test-unit-python.log
+unit-caldata	PASS	logs/test-unit-caldata.log
+unit-mac	PASS	logs/test-unit-mac.log
+unit-bdf-extract	PASS	logs/test-unit-bdf-extract.log

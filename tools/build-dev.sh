@@ -91,7 +91,8 @@ s_deps() {
 	echo "nproc=$(nproc) mem=$(free -m | awk '/Mem:/{print $2}')MB"
 	local avail; avail=$(df -Pk "$PROJ" | awk 'NR==2{print int($4/1024/1024)}')
 	echo "disk_avail=${avail}GB"
-	[ "$avail" -ge 25 ] || { echo "need >=25GB free"; miss=1; }
+	local need=25; [ "$RESUME" = 1 ] && need=5	# incremental rebuild of a prepared tree
+	[ "$avail" -ge "$need" ] || { echo "need >=${need}GB free"; miss=1; }
 	return $miss
 }
 

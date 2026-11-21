@@ -1,5 +1,5 @@
-# Artifact validation (dev) 2026-11-21T14:33:34Z
-PASS initramfs FIT present: openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb (13321784 bytes)
+# Artifact validation (dev) 2026-11-21T15:24:22Z
+PASS initramfs FIT present: openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb (13328276 bytes)
 PASS FIT has config@mp02.1 (stock U-Boot selects this)
 PASS kernel load address 0x41000000
 PASS decompressed kernel 23552008 < 50331648 bytes (no overlap with FIT at 0x44000000)
@@ -24,18 +24,18 @@ PASS dtb: partition rootfs_1 offset/size got ('0x3bc0000', '0x3580000') want ('0
 PASS dtb: partition tp_data offset/size got ('0x7140000', '0x840000') want ('0x7140000', '0x840000')
 PASS dtb: partition radio offset/size got ('0x7980000', '0x440000') want ('0x7980000', '0x440000')
 PASS dtb: partition data offset/size got ('0x7dc0000', '0x80000') want ('0x7dc0000', '0x80000')
-PASS dtb: partition 0:BOOTCONFIG read-only
-PASS dtb: partition 0:QSEE read-only
-PASS dtb: partition 0:DEVCFG read-only
-PASS dtb: partition 0:SBL1 read-only
 PASS dtb: partition 0:BOOTCONFIG1 read-only
-PASS dtb: partition 0:MIBIB read-only
-PASS dtb: partition 0:CDT read-only
-PASS dtb: partition 0:ART read-only
 PASS dtb: partition radio read-only
 PASS dtb: partition 0:APPSBL read-only
-PASS dtb: partition tp_data read-only
 PASS dtb: partition 0:TRAINING read-only
+PASS dtb: partition 0:SBL1 read-only
+PASS dtb: partition 0:DEVCFG read-only
+PASS dtb: partition 0:ART read-only
+PASS dtb: partition 0:MIBIB read-only
+PASS dtb: partition 0:CDT read-only
+PASS dtb: partition 0:QSEE read-only
+PASS dtb: partition tp_data read-only
+PASS dtb: partition 0:BOOTCONFIG read-only
 PASS dtb: no partition overlap
 PASS dtb: partitions within 128 MiB 0x7e40000
 PASS dtb: erase-block aligned
@@ -55,11 +55,11 @@ PASS dtb: cpu port 2500base-x
 PASS no patch backup files in /lib/preinit
 PASS tp_data preinit handles AX23 v2
 PASS 02_network handles AX23 v2
-INFO IPQ5018 board-2.bin ABSENT (no locally supplied board data) -> Wi-Fi BLOCKED, same -12 as baseline
-INFO QCN6122 board-2.bin ABSENT (no locally supplied board data) -> Wi-Fi BLOCKED, same -12 as baseline
+PASS IPQ5018 board-2.bin contains the AX23 v2 variant
+PASS QCN6122 board-2.bin contains the AX23 v2 variant
 PASS Q6 firmware present
 PASS caldata regdomain fix present
 PASS sysupgrade interlock present
-INFO rootfs size 29288 KiB
+INFO rootfs size 29548 KiB
 PASS ath11k built from patched backports source (FW-mode-2 RX ring sizing)
 fails=0
