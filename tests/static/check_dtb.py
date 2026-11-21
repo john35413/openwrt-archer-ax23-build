@@ -12,9 +12,13 @@ import sys
 NAND_SIZE = 128 * 1024 * 1024
 ERASE = 128 * 1024
 # Partitions that must never be writable from OpenWrt (factory/boot data).
+# Since patch 0015 every partition is read-only while no validated install
+# procedure exists (the RAM image must not be able to write NAND at all):
+# 0:APPSBLENV, the two stock slots and "data" (empty UBI auto-attached at boot).
 MUST_RO = {"0:SBL1", "0:MIBIB", "0:BOOTCONFIG", "0:BOOTCONFIG1", "0:QSEE",
            "0:DEVCFG", "0:CDT", "0:APPSBL", "0:ART", "0:TRAINING",
-           "tp_data", "radio"}
+           "tp_data", "radio",
+           "0:APPSBLENV", "rootfs", "rootfs_1", "data"}
 # Layout documented from the stock partition table (docs/HARDWARE.md) and
 # /proc/mtd on hardware (forum t/254876 #57).
 EXPECTED = {

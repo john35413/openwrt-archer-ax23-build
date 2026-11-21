@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: AX23_V2_OPENWRT <ax23-v2-openwrt@users.noreply.invalid>
+Date: Sat, 21 Nov 2026 16:47:13 +0000
+Subject: [PATCH] qualcommax: ipq50xx: archer-ax23-v2: make every partition
+ read-only
+
+This port has no validated installation or recovery procedure yet, so a
+RAM-booted image must not be able to write NAND at all. Four partitions
+were still writable:
+
+- "data" holds the stock firmware's empty UBI (4 PEBs, no user volume).
+  The generic UBI auto-attach (pending 490) attaches a partition named
+  "data" on every boot, so the RAM image attached it read-write and
+  started its background thread; boot logs from an AX21 v5 running this
+  image show "UBI: auto-attach mtd15" and "ubi0: attached mtd15 (name
+  "data")" without the write-protected notice that tp_data gets. UBI
+  may erase or scrub PEBs on its own once attached read-write.
+- 0:APPSBLENV only needs to be read (fw_printenv, uboot-envtools).
+- rootfs / rootfs_1 are the stock dual-boot slots; sysupgrade is already
+  refused on this board.
+
+With all sixteen partitions read-only, UBI attaches "data" in read-only
+mode like tp_data, and nothing in the kernel can write to the flash.
+Dropping read-only from the slots and the environment belongs with a
+reviewed, hardware-validated installation procedure.
+---
+ .../qualcommax/dts/ipq5018-archer-ax23-v2.dts      | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts b/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts
+index b8d916fffe..3b7c0f0158 100644
+--- a/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts
++++ b/target/linux/qualcommax/dts/ipq5018-archer-ax23-v2.dts
+@@ -385,6 +385,16 @@
+ 		nand-ecc-step-size = <512>;
+ 		nand-bus-width = <8>;
+ 
++		/*
++		 * Every partition is read-only while this port has no validated
++		 * installation and recovery procedure: a RAM-booted image must not
++		 * be able to write NAND at all. In particular the stock "data"
++		 * partition holds an empty UBI that the generic auto-attach (490)
++		 * would otherwise attach read-write with a background thread, and
++		 * 0:APPSBLENV only needs to be read (fw_printenv). Drop read-only
++		 * from the slots and APPSBLENV only together with a reviewed,
++		 * hardware-validated installation procedure.
++		 */
+ 		partitions {
+ 			compatible = "fixed-partitions";
+ 			#address-cells = <1>;
+@@ -435,6 +445,7 @@
+ 			partition@300000 {
+ 				label = "0:APPSBLENV";
+ 				reg = <0x300000 0x080000>;
++				read-only;
+ 			};
+ 
+ 			partition@380000 {
+@@ -458,11 +469,13 @@
+ 			partition@640000 {
+ 				label = "rootfs";
+ 				reg = <0x640000 0x3580000>;
++				read-only;
+ 			};
+ 
+ 			partition@3bc0000 {
+ 				label = "rootfs_1";
+ 				reg = <0x3bc0000 0x3580000>;
++				read-only;
+ 			};
+ 
+ 			partition@7140000 {
+@@ -480,6 +493,7 @@
+ 			partition@7dc0000 {
+ 				label = "data";
+ 				reg = <0x7dc0000 0x080000>;
++				read-only;
+ 			};
+ 		};
+ 	};
