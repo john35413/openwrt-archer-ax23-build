@@ -153,3 +153,91 @@ bootloader source. Conditions (all mandatory):
 **If condition 1 is unacceptable (owner's stated preference: no UART), the answer is NO-GO
 for this owner** → return the router while it is unopened and buy a model with official
 OpenWrt support and a UART-free install path.
+
+---
+
+## Update 2026-11-21 (final engineering phase): executive summary
+
+Third investigation added: the ath11k **TX completion ring** low-memory patch (0012,
+adapted from the ath-next proposal with a corrected IDR bound), the upstream
+ath11k/mac80211 stability + CVE backports (0013/0014), **all 16 flash partitions made
+read-only** in the RAM image (0015), a **simulated-NAND/UBI lab** with the exact AX23
+layout, a **FIT verifier**, a **read-only redacted hardware self-diagnostic**, a
+**low-memory digital-twin matrix**, cross-device analysis of every IPQ5018+QCN6122
+sibling, and a **disassembly of the stock web flasher** settling the UART-free
+question. New reports: `cross-device-equivalence.md`, `ath11k-low-memory-analysis.md`,
+`real-memory-budget.md`, `uart-free-final-investigation.md`,
+`raspberry-pi-validation.md`, `physical-hardware-test-plan.md`,
+`final-readiness-matrix.md`.
+
+Current RAM-boot image: `artifacts/ram-only/dev/…initramfs-uImage.itb`
+(13,329,236 bytes, sha256 `14f21390e1497c691a4285c9d4fb273fc5f600083012355adee15e450689c38d`)
+— patches 0001–0015 **plus EU board data** from the unit's own signed firmware
+(proprietary; kept local, reproduce with `tools/bdf/board-data-from-tplink-firmware.sh`).
+67 artifact-validator checks PASS, 0 FAIL; static/unit/network/twin/NAND suites green.
+
+### The twelve questions
+
+1. **Is the Wi-Fi `-12` root cause fully understood and fixed?** Yes in software:
+   missing board data; traced file-by-file (SRC) and matched to the 3P log. EU board
+   data from the unit's own signed firmware is in the image. **Effect on hardware:
+   HYP** until one RAM boot.
+2. **Is the low-memory problem solved the right way?** The RX rings (0002) and now
+   the **TX completion ring + dependent logic** (0012) are reduced, keyed on the DT
+   FW-memory-mode so only this board class changes. Adapted, not copied: the IDR is
+   bounded at `size−2` (a model showed `size−1` can strand a completion). Compiled
+   into the AX23 ath11k (BUILD). Two 256 MiB siblings keep Wi-Fi disabled **without**
+   such a change; the one that enables it uses mode 2 as we do (REL). **Byte/order
+   saving proven (SRC); stability effect HYP** until hardware `free`/`dmesg`.
+3. **Does our build equal what third parties tested?** Wired: yes (same rtl8365mb v7,
+   same UNIPHY #26597, 3P real NAT) (REL/3P). Wi-Fi: no one has tested it on any AX23.
+4. **Is there a UART-free way to install OpenWrt?** **No** (SRC, strong). Both U-Boot
+   and the stock web flasher enforce the same TP-Link RSA signatures — confirmed by
+   disassembling `libnvrammanager.so`. The RE700X keyless web-flash trick does **not**
+   exist on the AX23. First boot needs 1.8 V UART.
+5. **Is there a UART-free way to recover stock?** **Yes by design** (reset-held HTTP
+   recovery, signed EU 1.0.2 image), **UNVERIFIED on HW** until the passive test.
+   Independently confirmed on the MR80X v2 sibling (REL).
+6. **Can a persistent install preserve recovery and factory data?** Yes by design if
+   only the inactive slot is written; rehearsed on simulated NAND (slot isolation,
+   truncated-write fallback, bad-block skip, env layout) (SIM). **BLOCKED** on HW +
+   owner authorization.
+7. **Can the RAM image damage the flash by itself?** Now provably no: **all 16
+   partitions are read-only** (0015), so even the auto-attached "data" UBI mounts
+   read-only (the lab showed a writable UBI scrubs/erases PEBs on its own) (BUILD +
+   SIM).
+8. **Is the full software stack correct?** Yes (SIM): 48/48 twin ×3 — DHCP/DNS, NAT,
+   IPv6, WPA2/WPA3, guest/IoT isolation, LuCI, firewall, reboot recovery; plus a
+   low-memory matrix and a self-diagnostic that runs clean with no side effects.
+9. **Is the memory budget survivable?** Projected ~85–100 MiB idle with both radios
+   (HYP), ~48 MiB of host DMA saved vs default, and the order-9 allocation risk
+   removed. Strong REL/SRC support; **only a hardware reading confirms it.**
+10. **Are the switch/trunk risks understood?** Yes: the cold-boot 2.5G race is real on
+    this switch family (two siblings ship at 1G because of it); our UNIPHY patches are
+    the mitigation and 3P AX23 logs show the trunk working (REL/3P). 20× reboot on HW
+    outstanding.
+11. **Is the Pi integration safe?** Design + static checks done; least-privilege
+    (read-only ACL, forced-command backup key, LAN-only). **BLOCKED** on the owner's
+    Pi; needs no change to OASA Live/Pi-hole/DNS/Tailscale/Docker.
+12. **What cannot be known without the device?** Everything behind gates **B–E**:
+    real radio init, switch SerDes traffic, NAND writes, and multi-day stability.
+    These are **fully prepared** (staged plan + read-only scripts + gates) and are not
+    claimed as done.
+
+### Final conclusion: **CONDITIONAL GO** (unchanged verdict, stronger basis)
+
+Nothing that can be done offline is left undone: the build, the Wi-Fi fix, the
+low-memory RX **and** TX changes, the upstream security backports, the flash-safety
+lockdown, the NAND/recovery analysis and the UART-free answer are all complete and
+evidence-backed. The device can become a stable OpenWrt router **if and only if** the
+owner accepts opening the case and using a 1.8 V-safe UART for first boot and
+recovery — there is **no** UART-free install on this model. Conditions (all
+mandatory): (1) 1.8 V UART accepted; (2) first RAM boot shows both radios initialising
+with no board/alloc errors; (3) the passive reset-held recovery page appears;
+(4) memory stays healthy in a 24 h both-radio soak.
+
+**If the owner's stated preference (no UART) stands, the answer for this owner is
+NO-GO** → return the unopened router and choose a model with official OpenWrt support
+and a UART-free install path. This is an honest **INSUFFICIENT EVIDENCE for
+hardware-validated daily use** combined with a **GO for everything that does not
+require the physical unit** — the split the gates A–E make explicit.

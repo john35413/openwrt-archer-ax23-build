@@ -1,0 +1,12 @@
+# Regulatory domain: Greece (GR). Apply on the real unit for the owner's region.
+#   ssh root@192.168.1.1 "uci import -m wireless < /etc/ax23/40-regulatory-gr.uci && uci commit wireless && wifi reload"
+# GR and DE are both ETSI/EU domains (same 2.4/5 GHz channels and DFS rules);
+# the kernel regdb applies the exact TX-power/DFS table at runtime (RF-verify on HW).
+# Patch 0010 guarantees each radio uses its own country and never '00' from a sibling.
+package wireless
+
+config wifi-device 'radio0'
+	option country 'GR'
+
+config wifi-device 'radio1'
+	option country 'GR'

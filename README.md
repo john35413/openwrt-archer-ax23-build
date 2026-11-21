@@ -31,7 +31,9 @@ tests/static|unit|network     offline tests (network = namespaces inside a QEMU 
 tests/hardware/               router/PC scripts + HARDWARE-TEST-PLAN.md (read-only on the router)
 artifacts/ram-only/           initramfs-uImage.itb + SHA256SUMS + BUILDINFO
 artifacts/experimental-do-not-flash/
-reports/                      audit, Wi-Fi, Ethernet, NAND safety, simulation, final validation
+tests/nand/                   NAND/UBI lab on simulated NAND (nandsim) with the AX23 layout
+reports/                      audit, Wi-Fi, Ethernet, NAND safety, cross-device, memory budget,
+                              ath11k low-memory, UART-free, readiness matrix, final validation
 logs/                         build and test logs
 ```
 
@@ -84,6 +86,10 @@ it is not in this repository. Extract it from your own unit's stock firmware
 | 0006-0009 | upstream UNIPHY fixes incl. PR #26597 (cherry-picked with `-x`) | cold-boot 2.5G trunk training race |
 | 0010 | wifi-scripts: another radio's `00` country no longer breaks hostapd | found by the digital twin: no AP started |
 | 0011 | uboot-envtools entry (env layout from TP-Link's GPL U-Boot) | read-only `fw_printenv tp_boot_idx` diagnostics |
+| 0012 | ath11k: smaller TX completion ring in FW memory mode 2 | the 32768-entry ring needs an order-9 (2 MiB) DMA block per radio at firmware-ready time; 2048 avoids it (adapted from the ath-next low-memory proposal) |
+| 0013 | ath11k/ath12k mac_phy_caps stride overflow fix (CVE-2026-90398/9) | cherry-picked from OpenWrt main |
+| 0014 | ath11k 102-118/954-956 + mac80211 484-490 fixes from OpenWrt main | NULL deref/leaks/use-after-frees merged upstream after our base |
+| 0015 | every flash partition `read-only` in the RAM image | the RAM image must not be able to write NAND at all (the auto-attached "data" UBI otherwise mounts read-write) |
 
 ## Pinned sources
 

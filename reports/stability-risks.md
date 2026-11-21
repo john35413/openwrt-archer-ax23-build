@@ -13,7 +13,7 @@ Labels as in `wifi-root-cause.md`.
 | Initramfs rootfs held in RAM (RAM boot only) | ≈29 MiB uncompressed (`reports/artifacts-dev.txt`) | STATIC |
 | ath11k host RX buffers, default sizes | ≈25 MiB per radio (≈9,216 × ~2.8 KiB) | STATIC estimate |
 | …with dev patch 0002 (FW memory mode 2) | ≈3.2 MiB (2.4 GHz) + ≈4.6 MiB (5 GHz) | STATIC estimate |
-| TX completion rings (unchanged) | 32768 × 32 B per ring, coherent + kmalloc mirror | STATIC; candidate for a later, separate patch |
+| TX completion ring (dev patch 0012) | 2048 × 32 B (was 32768): ~192 KiB/radio, order-5 DMA (was order-9/2 MiB) | STATIC; closes the order-9 at-firmware-ready allocation risk, see `ath11k-low-memory-analysis.md` |
 | QEMU twin with hwsim radios, 200 MiB VM | MemAvailable ≈70 MiB with 4 SSIDs + 2 clients | QEMU (not ath11k; not representative of FW memory) |
 
 Rough RAM-boot projection (HYP): 173 MiB − ~29 MiB initramfs − ~25-35 MiB userspace/kernel
