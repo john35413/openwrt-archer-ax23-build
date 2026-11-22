@@ -1,7 +1,7 @@
 {
   "project": "AX23_V2_OPENWRT",
-  "repository": "https://github.com/john35413/DuinoCoinUSB_ESP8266",
-  "branch": "claude/openwrt-archer-ax23-v2-5vtpoe",
+  "repository": "https://github.com/john35413/openwrt-archer-ax23-build",
+  "branch": "dev",
   "source_state": {
     "firmware_code_revision_built": "8673c2e6a001fce6271d11700bfa1d27dc51edc9",
     "latest_host_test_revision": "bd2326a5002eca746ce3edcdff5b7cb2913188ae",
@@ -17,7 +17,7 @@
     "rootfs": "initramfs",
     "kernel": "6.18.55",
     "wireless_backports": "7.2",
-    "artifact": "artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb",
+    "artifact": "artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb (local symlink; binary not published)",
     "size_bytes": 13330704,
     "sha256": "6d85f2a82117008fc991ffdea54a7fc64a77f2616bdf02f5b9bcabd7a059a9ff",
     "artifact_local_only": true,
@@ -66,6 +66,22 @@
     "reports/final-codex-adversarial-audit.md",
     "reports/CODEX_FINAL_HANDOVER.md",
     "reports/first-ram-boot-checklist.md",
-    "reports/artifacts-dev.txt"
-  ]
+    "reports/artifacts-dev.txt",
+    "ORIGIN-PROVENANCE.md",
+    "README.md",
+    "LICENSES.md",
+    "CONTRIBUTING.md"
+  ],
+  "default_branch": "main",
+  "migration": {
+    "source_repository": "https://github.com/john35413/DuinoCoinUSB_ESP8266",
+    "source_branch": "claude/openwrt-archer-ax23-v2-5vtpoe",
+    "source_branch_head": "6847cff6fc5a7bea141c42ccde19d0c4f9f972f4",
+    "subtree_split_before_log_filter": "9930dc13d49ada6736f375bf966a0d0dd0c17be0",
+    "preserved_non_log_history": true,
+    "raw_logs_removed_from_all_imported_history": true,
+    "local_checkout": "/home/jfits/openwrt-archer-ax23-build",
+    "cache_reuse": "build/, upstream/ and board-data/ are ignored local symlinks to the preserved original project; no large trees were copied",
+    "local_artifact": "artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb (local symlink to original artifact)"
+  }
 }

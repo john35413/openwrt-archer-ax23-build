@@ -22,3 +22,12 @@ __pycache__/
 /logs/nand/dmesg*.txt
 /logs/nand/.vm-entry.sh
 /logs/build-dev-resume-*.log
+# Runtime outputs and private inputs; generated logs are not source history.
+/logs/
+/board-data/
+/build/
+/upstream/
+# Local cache/data symlinks (also match symlink entries).
+/build
+/upstream
+/board-data

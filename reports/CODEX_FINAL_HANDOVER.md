@@ -1,10 +1,13 @@
 # Codex final handover
 
-**State:** Local build and offline validation complete; physical use remains conditional. The handover and source changes are published on the existing development branch. No router operation occurred.
+**State:** Standalone-repository migration in progress. The local build and offline validation are complete; physical use remains conditional. No router operation occurred.
 
 ## Revisions
 
 - Starting Claude checkpoint: `9576d3ea680aabcf9a14eb905c97ad99a7d430b8`.
+- Latest imported legacy branch commit: `6847cff6fc5a7bea141c42ccde19d0c4f9f972f4`; it adds `reports/final-validation-and-ram-load-conclusions.md`.
+- Standalone repository: `https://github.com/john35413/openwrt-archer-ax23-build`; active branch `dev`, default baseline `main`.
+- Standalone local path: `/home/jfits/openwrt-archer-ax23-build`.
 - Previous Codex firmware-source checkpoint: `8673c2e6a001fce6271d11700bfa1d27dc51edc9`.
 - Current host-test correction checkpoint: `bd2326a5002eca746ce3edcdff5b7cb2913188ae` (`tests: decode dtc string-list encoded radio address cells`).
 - Prepared OpenWrt tree: `d0e975060d5c71565e0a62abbddf48ef1312478c`; all 27 ordered patches applied. 0026 is inner commit `4f8bf04`; 0027 is `d0e9750`.
@@ -13,7 +16,7 @@
 
 The existing WSL tree and caches were reused. `tools/build-dev.sh --variant dev --resume --jobs 4` completed. A WindowsApps path inherited by WSL initially caused GNU `find -execdir` to fail during package install; a Linux-only PATH scoped to the build process fixed it without changing system settings.
 
-Local-only image: `/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT/artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb` (13,330,704 bytes, SHA256 `6d85f2a82117008fc991ffdea54a7fc64a77f2616bdf02f5b9bcabd7a059a9ff`). FIT `config@mp02.1`, kernel load/entry `0x41000000`. The image was not uploaded to GitHub. Raw build/test logs under `logs/dev/` are also local-only; GitHub has the concise validator report and build manifest, not the raw compiler log. Claude's earlier cloud image is a separate build.
+Local-only image: `/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT/artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb` (13,330,704 bytes, SHA256 `6d85f2a82117008fc991ffdea54a7fc64a77f2616bdf02f5b9bcabd7a059a9ff`). FIT `config@mp02.1`, kernel load/entry `0x41000000`. The image was not uploaded to GitHub. A local symlink in the standalone checkout will point to the preserved original artifact, without copying it. Raw build/test logs under `logs/dev/` are also local-only; GitHub has the concise validator report and build manifest, not the raw compiler log. Claude's earlier cloud image is a separate build. Raw build/test logs and all historical `logs/` paths were omitted from the standalone publication.
 
 Artifact validator: 77 PASS, 1 INFO, 0 FAIL. It confirms 16 read-only DT partitions, target/FIT, EU board data, embedded modules/startup hooks and the compiled 0026/0027 objects. `qcom_q6v5_mpd.o` contains `q6_wcss_recover_userpds`; patched backports `ath11k/dp.o` compiled with exact allocation sizes.
 
@@ -30,4 +33,4 @@ Tests: nine shell suites PASS, one SKIP (`ubireader_extract_images` unavailable)
 
 **CONDITIONAL GO for RAM boot only after** confirming exact EU v2.0 hardware, measured UART voltage/pins, stock recovery availability, bootloader RAM/FIT/signature acceptance without bypass, and passive GPIO 26/39 wiring/polarity. Otherwise stop. No persistent image is authorized; never `saveenv`, flash or run sysupgrade.
 
-The artifact exists only on the Windows PC's WSL filesystem. Claude can access the pushed source, this handover, reports and manifests through GitHub, but cannot access that local image or private local EU board data. Recompute the image hash locally before any later use. See `reports/build-manifest.json`, `reports/final-codex-adversarial-audit.md` and `reports/first-ram-boot-checklist.md`.
+The artifact exists only on the Windows PC's WSL filesystem. Claude can access the pushed source, this handover, reports and manifests through GitHub, but cannot access that local image or private local EU board data. Recompute the image hash locally before any later use. See `reports/build-manifest.json`, `reports/final-codex-adversarial-audit.md`, `reports/first-ram-boot-checklist.md` and root `ORIGIN-PROVENANCE.md`. The prepared `build/`, upstream source trees and private `board-data/` are local symlinks to the original project; they were not copied or published.
