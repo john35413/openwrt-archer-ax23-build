@@ -9,7 +9,7 @@
 - Confirm a documented stock recovery path is available without uploading or writing anything. Confirm the normal NAND firmware still boots before starting RAM tests.
 - Measure UART I/O voltage and identify ground, router TX and router RX on the actual board. The repository's 1.8 V/pin references are not physical verification. Start receive-only: connect adapter ground and router TX to adapter RX; leave adapter TX disconnected until voltage and pinout are confirmed.
 - Resolve the GPIO 26/39 reset mapping passively before boot. The current DTS drives GPIO 39 for the switch; OEM evidence points to GPIO 26. Establish continuity, polarity and reset waveform without driving either pin. Do not boot with an unresolved possibility of an unsafe switch-reset output.
-- Confirm bootloader RAM-load/bootm support, load address/capacity and acceptance of this exact FIT. The FIT has hashes but no signing claim; do not bypass any bootloader signature policy. If acceptance is uncertain or requires bypass, stop.
+- Confirm bootloader RAM-load/bootm support, load address/capacity and acceptance of this exact FIT. The FIT has hashes but no signing claim; do not bypass any bootloader signature policy. If acceptance is uncertain or requires bypass, stop. Evidence and the observation to make at the prompt: `final-validation-and-ram-load-conclusions.md` §5–6.
 - Record stock Wi-Fi client RSSI, band, channel and region so later comparisons have a baseline.
 
 ## RAM boot and immediate checks
