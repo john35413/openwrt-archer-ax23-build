@@ -25,6 +25,7 @@ Tests: nine shell suites PASS, one SKIP (`ubireader_extract_images` unavailable)
 ## Findings and changes
 
 - Validation uncovered a checker defect missed earlier: dtc renders the valid IPQ5018 BDF address `0x4c400000` as the string list `"L@", ""`; the parser mishandled string lists. Fixed `tests/static/check_dtb.py` and added three regression cases in `tests/unit/test_tools.py`. The FIT DTB now passes. Host test only; no firmware rebuild required.
+- Standalone path audit found `tools/clean-dev.sh` could traverse the new checkout's `build/` and `upstream/` symlinks and delete the preserved original caches. Added a realpath containment preflight plus `tests/unit/test_clean_symlink_guard.sh`; the regression confirms an external cache sentinel is preserved. The fix is on `dev` only and does not affect firmware output.
 - The earlier S2.4 stale-counter and S3.22 ART/BDF semantic corrections remain in `ec07e66` (`tests/hardware/ax23-selfdiag.sh`). This script is not embedded; stream it from the PC over SSH using `--bundle`.
 - Source review found no closed root/user remoteproc workqueue wait cycle in examined paths. Runtime races, SCM behavior, repeated recovery and OFFLINE-state recovery remain unproven. DMA source cleanup and compiled patch 0027 checks pass.
 - 2.5 G HSGMII endpoints are internally consistent. GPIO 26/39 switch reset mapping remains unresolved; do not boot until passively traced. No RF-power conclusions are supported. No intended NAND write path was found; runtime MTD/UBI state still needs read-only confirmation.
