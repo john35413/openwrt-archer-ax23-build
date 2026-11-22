@@ -109,8 +109,11 @@ for p in eth0 wan lan1 lan2 lan3 lan4; do
 	else [ "$p" = eth0 ] || r S2.3 FAIL "port $p netdev" "missing"; fi
 done
 e=$(cat /sys/class/net/eth0/statistics/rx_packets 2>/dev/null); t=$(cat /sys/class/net/eth0/statistics/tx_packets 2>/dev/null)
-[ "${e:-0}" -gt 0 ] && [ "${t:-0}" -gt 0 ] && r S2.4 PASS "frames cross the CPU trunk both ways" "eth0 rx=$e tx=$t" \
-	|| r S2.4 FAIL "frames cross the CPU trunk" "eth0 rx=$e tx=$t (EX511 v2 saw link-up with zero frames on HSGMII)"
+if [ -n "$e" ] && [ -n "$t" ]; then
+    r S2.4 INFO "cumulative CPU trunk packet counters" "eth0 rx=$e tx=$t; confirm fresh bidirectional transfer with client traffic and before/after counters"
+else
+    r S2.4 FAIL "CPU trunk counters unavailable" "eth0 rx=$e tx=$t"
+fi
 n=$(echo "$D" | grep -ciE "re-latch|did not latch|sds.*latch")
 r S2.5 INFO "777-08 SerDes re-latch events" "$n"
 # shellcheck disable=SC2046  # word splitting of the address list is intended
@@ -153,7 +156,7 @@ for pair in "IPQ5018 c000000.wifi 2G" "QCN6122 b00a040.wifi 5G"; do
 	chip=${pair%% *}; rest=${pair#* }; dev=${rest%% *}; band=${rest#* }
 	[ "$band" = 2G ] && regs=$CAL_REGIONS_2G || regs=$CAL_REGIONS_5G
 	res=$(cal_regions_populated "/lib/firmware/ath11k/$chip/hw1.0/cal-ahb-$dev.bin" "$regs")
-	r S3.22 INFO "$dev ART fills the board data's zeroed target-power regions" "$res (0/... = only board data, i.e. the AX55 13 dBm case; see S3.21)"
+	r S3.22 INFO "$dev nonzero ART bytes at BDF offsets" "$res; offset correspondence does not establish field meaning, units or usable transmit power"
 done
 echo "$D" | grep -q "failed to fetch board\|failed to load board data" && r S3.4 FAIL "board data loaded" "fetch/load failure lines in dmesg" \
 	|| r S3.4 PASS "no board-data fetch/load failure" ""
@@ -177,7 +180,7 @@ for pair in "c000000.wifi 0xff 0x24" "b00a040.wifi 0xff 0x60"; do
 	case "$res" in
 	ok*) r S3.20 PASS "$dev OTP board id is packaged" "${res#ok }" ;;
 	missing) r S3.20 INFO "$dev OTP board id" "no chip_id line (radio held or not started)" ;;
-	*) r S3.20 FAIL "$dev OTP board id not packaged" "${res#mismatch } (stock loads the DT selector regardless of OTP: add exactly this id for the same EU payload)" ;;
+	*) r S3.20 FAIL "$dev OTP board id not packaged" "${res#mismatch } (capture chip ID, board identity and front-end evidence before changing the mapping)" ;;
 	esac
 done
 alloc_errors=$(echo "$D" | grep -iE "ath11k.*(-12|-ENOMEM|failed to set ?up|failed to alloc|qmi failed memory)" | head -4)
@@ -276,4 +279,4 @@ if [ "${1:-}" = "--bundle" ]; then
 	echo "# ---- /proc/mtd ----"; cat /proc/mtd 2>/dev/null
 fi
 echo "# summary: FAIL=$FAILS WARN=$WARNS BLOCKED=$BLOCKS"
-echo "# gate: Stage 1 needs S1.* PASS (incl. S1.15 UBI read-only); Stage 2 needs S2.1/S2.2/S2.4 PASS; Stage 3 needs S3.4/S3.7/S3.9/S3.13 PASS and no S3.8 lines"
+echo "# gate: Stage 1 needs S1.* PASS (incl. S1.15 UBI read-only); Stage 2 needs S2.1/S2.2 PASS plus fresh bidirectional client traffic with before/after counters; Stage 3 needs S3.4/S3.7/S3.9/S3.13 PASS and no S3.8 lines"
