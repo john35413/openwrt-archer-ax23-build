@@ -26,6 +26,7 @@ def load(name, rel):
 
 board2 = load("board2", "tools/bdf/board2.py")
 ubootenv = load("ubootenv", "tools/uboot/ubootenv.py")
+dtbcheck = load("dtbcheck", "tests/static/check_dtb.py")
 
 AX23 = "bus=ahb,qmi-chip-id=0,qmi-board-id=255,variant=TP-Link-Archer-AX23-v2"
 
@@ -51,6 +52,18 @@ class Board2Scope(unittest.TestCase):
             entries = board2.parse(board2.pack(exact))
             for bid, variant in [(7, "TP-Link-Archer-AX23-v2"), (sid, "Other"), (255, "")]:
                 self.assertIsNone(board2.lookup(entries, board2.candidate_names("ahb", 0, bid, variant))[0])
+
+
+class DtcCellRendering(unittest.TestCase):
+    def test_printable_radio_address_cell_string_list(self):
+        # dtc renders BE bytes 4c 40 00 00 as two DTS strings, not <...>.
+        self.assertEqual(dtbcheck.cells('"L@", ""'), [0x4c400000])
+
+    def test_control_byte_radio_address_cell_string_list(self):
+        self.assertEqual(dtbcheck.cells('"M\\x10", ""'), [0x4d100000])
+
+    def test_multiple_string_elements_preserve_cell_boundaries(self):
+        self.assertEqual(dtbcheck.cells('"ABC", "DEF"'), [0x41424300, 0x44454600])
 
 
 class Board2(unittest.TestCase):

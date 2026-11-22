@@ -52,27 +52,33 @@ def prop(body, name):
 
 
 def cells(v):
-    """Integer cells from '<0x.. 0x..>' or from dtc's string rendering of
-    printable cell bytes (e.g. 0x4c400000 is printed as "L@\\0")."""
+    """Decode integer cells, including dtc's printable-byte string form."""
     v = v.strip()
     if v.startswith('"'):
         raw = bytearray()
-        body = v[1:v.rindex('"')]
-        i = 0
-        while i < len(body):
-            c = body[i]
-            if c == "\\":
-                n = body[i + 1]
-                if n == "0":
-                    raw.append(0)
-                elif n == "x":
-                    raw.append(int(body[i + 2:i + 4], 16)); i += 2
-                else:
-                    raw.append({"n": 10, "t": 9, "r": 13}.get(n, ord(n)))
-                i += 2
-                continue
-            raw.append(ord(c)); i += 1
-        raw.append(0)  # implicit terminator dtc assumed
+        strings = re.findall(r'"((?:\\.|[^"\\])*)"', v)
+        if not strings:
+            return []
+        for body in strings:
+            i = 0
+            while i < len(body):
+                c = body[i]
+                if c == "\\":
+                    if i + 1 >= len(body):
+                        return []
+                    n = body[i + 1]
+                    if n == "0":
+                        raw.append(0)
+                    elif n == "x" and i + 3 < len(body):
+                        raw.append(int(body[i + 2:i + 4], 16))
+                        i += 2
+                    else:
+                        raw.append({"n": 10, "t": 9, "r": 13}.get(n, ord(n)))
+                    i += 2
+                    continue
+                raw.append(ord(c))
+                i += 1
+            raw.append(0)  # DTS string lists terminate each element
         if len(raw) % 4:
             return []
         return [int.from_bytes(raw[j:j + 4], "big") for j in range(0, len(raw), 4)]
