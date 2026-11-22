@@ -10,3 +10,4 @@ unit-mpd-recovery	PASS	logs/test-unit-mpd-recovery.log
 unit-ath11k-ring-alloc	PASS	logs/test-unit-ath11k-ring-alloc.log
 unit-trunk-variant	PASS	logs/test-unit-trunk-variant.log
 unit-selfdiag-boardid	PASS	logs/test-unit-selfdiag-boardid.log
+unit-selfdiag-calregions	PASS	logs/test-unit-selfdiag-calregions.log

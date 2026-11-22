@@ -132,6 +132,29 @@ done
 for f in /lib/firmware/ath11k/IPQ5018/hw1.0/cal-ahb-c000000.wifi.bin /lib/firmware/ath11k/QCN6122/hw1.0/cal-ahb-b00a040.wifi.bin; do
 	[ -f "$f" ] && r S3.3 INFO "caldata $(echo $f | cut -d/ -f5)" "size=$(wc -c <"$f") (contents not printed)" || r S3.3 WARN "caldata present" "$f missing"
 done
+# --- cal-regions begin (unit-tested: tests/unit/test_selfdiag_calregions.sh)
+# Regions (hex offset:length) that the stock AX23 EU board data leaves at zero while
+# Qualcomm's reference board data fills them (target-power tables; final-rf-compatibility-audit.md).
+# Counts how many of them the unit's own ART calibration fills. Prints counts only.
+CAL_REGIONS_2G="5580:8 55b0:8 55e0:8 58e0:12 595c:12 59d0:8 5cac:12 5d28:12 5d9c:8 60f0:24 6168:28 61e0:20 64bc:24 6534:28 65ac:20 6888:24 6900:28 6978:20 7468:48 755c:40 7648:16 84b8:36 85ac:40 8698:16 9388:32 947c:40 9568:16 9f58:32 a04c:40 a138:16 b47c:60 b56c:56 b65c:28 c4cc:60 c5bc:56 c6ac:28 d39c:60 d48c:56 d57c:28"
+CAL_REGIONS_5G="3ed8:16 5580:8 55b0:8 55e0:8 58e0:32 595c:28 59d0:32 5cac:32 5d28:28 5d9c:32 60f0:44 6168:44 61e0:44 64bc:44 6534:44 65ac:44 6888:44 6900:44 6978:44 7468:32 755c:28 7648:32 84b8:32 85ac:28 8698:32 9388:32 947c:28 9568:32 9f58:32 a04c:28 a138:32 b47c:44 b56c:44 b65c:44 b74c:10 c4cc:44 c5bc:44 c6ac:44 c79c:10 d39c:44 d48c:44 d57c:44 d66c:10 18a71:8"
+cal_regions_populated() {	# cal_regions_populated FILE "off:len ..." -> "N/M" or "missing"
+	[ -r "$1" ] || { echo missing; return; }
+	sz=$(wc -c <"$1"); n=0; m=0
+	for reg in $2; do
+		off=$((0x${reg%%:*})); len=${reg#*:}; m=$((m + 1))
+		[ $((off + len)) -le "$sz" ] || continue
+		hexdump -v -s "$off" -n "$len" -e '1/1 "%02x"' "$1" | grep -q '[1-9a-f]' && n=$((n + 1))
+	done
+	echo "$n/$m"
+}
+# --- cal-regions end
+for pair in "IPQ5018 c000000.wifi 2G" "QCN6122 b00a040.wifi 5G"; do
+	chip=${pair%% *}; rest=${pair#* }; dev=${rest%% *}; band=${rest#* }
+	[ "$band" = 2G ] && regs=$CAL_REGIONS_2G || regs=$CAL_REGIONS_5G
+	res=$(cal_regions_populated "/lib/firmware/ath11k/$chip/hw1.0/cal-ahb-$dev.bin" "$regs")
+	r S3.22 INFO "$dev ART fills the board data's zeroed target-power regions" "$res (0/... = only board data, i.e. the AX55 13 dBm case; see S3.21)"
+done
 echo "$D" | grep -q "failed to fetch board\|failed to load board data" && r S3.4 FAIL "board data loaded" "fetch/load failure lines in dmesg" \
 	|| r S3.4 PASS "no board-data fetch/load failure" ""
 echo "$D" | grep -E "ath11k.*fw_build_id" | while read -r x; do r S3.5 INFO "ath11k firmware" "$x"; done

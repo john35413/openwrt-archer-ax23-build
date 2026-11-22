@@ -89,7 +89,7 @@ Check the gate lines the self-diagnostic prints:
   switch on GPIO 26, active low (`rtl8367-reset-trace.md` §1). The variant must use the
   stock timing (assert ≥ 200 ms, ≥ 200 ms before the first MDIO access) and needs
   continuity on GPIO 26 first (§5 there); selfdiag S2.8 records both lines.
-- Wi-Fi first boot: S3.20 must PASS for both radios (an unpackaged OTP id is added as exactly that id for the same EU payload). S3.21 TX power ≤ 13 dBm means the zeroed BDF target-power tables are in effect: compare RSSI against stock on the same channel before drawing conclusions (`final-rf-compatibility-audit.md`).
+- Wi-Fi first boot: S3.20 must PASS for both radios (an unpackaged OTP id is added as exactly that id for the same EU payload). S3.21 TX power ≤ 13 dBm means the zeroed BDF target-power tables are in effect: compare RSSI against stock on the same channel before drawing conclusions. S3.22 shows whether the unit's ART fills the zeroed regions. Follow `tx-power-investigation.md` §4 and do it before the first OpenWrt boot if possible, since the stock measurement needs the untouched stock firmware.
 - **Gate:** all of the above green. **This is the full RAM-boot acceptance.** If any
   Wi-Fi gate fails, the root-cause map in `wifi-root-cause.md` §6 says what next;
   **do not proceed to Stage 4+.**
