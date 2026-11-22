@@ -86,7 +86,9 @@
     "destination_repository": "https://github.com/john35413/openwrt-archer-ax23-build",
     "status": "published; main is default, dev is active",
     "public": true,
-    "tracked_source_files": 162,
-    "local_path_safety_fix": "clean-dev realpath containment preflight; focused symlink-cache regression passes; no firmware output change"
+    "local_path_safety_fix": "clean-dev realpath containment preflight; focused symlink-cache regression passes; no firmware output change",
+    "source_subtree_files": 158,
+    "public_main_tracked_files": 162,
+    "current_dev_tracked_files": 163
   }
 }

@@ -8,6 +8,7 @@
 - Latest imported legacy branch commit: `6847cff6fc5a7bea141c42ccde19d0c4f9f972f4`; it adds `reports/final-validation-and-ram-load-conclusions.md`.
 - Standalone repository: `https://github.com/john35413/openwrt-archer-ax23-build` (public); default branch `main`; active development branch `dev`.
 - Standalone local path: `/home/jfits/openwrt-archer-ax23-build`.
+- File counts: 158 files in the imported AX23 subtree, 162 tracked on public main after four migration documents, and 163 on current dev after the cache-safety regression test.
 - Previous Codex firmware-source checkpoint: `8673c2e6a001fce6271d11700bfa1d27dc51edc9`.
 - Current host-test correction checkpoint: `bd2326a5002eca746ce3edcdff5b7cb2913188ae` (`tests: decode dtc string-list encoded radio address cells`).
 - Prepared OpenWrt tree: `d0e975060d5c71565e0a62abbddf48ef1312478c`; all 27 ordered patches applied. 0026 is inner commit `4f8bf04`; 0027 is `d0e9750`.
