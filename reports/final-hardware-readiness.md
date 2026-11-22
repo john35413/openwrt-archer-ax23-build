@@ -19,7 +19,7 @@ hashes and `config@mp02.1`. Board data repacked with 2 explicit variant-qualifie
 | Change | Why | Evidence |
 |---|---|---|
 | board-2.bin packed with **two explicit variant-qualified keys** (255 and 36/96); no unqualified fallback | an unqualified `bus=ahb,qmi-chip-id=0` fallback could silently serve wrong board data to any radio with an unmapped OTP id | SRC, BUILD (`board2.py scoped --eu` PASS both radios) |
-| board-2.bin resolves for **any OTP board id** (255, OEM 36/96, chip-id fallback) | a programmed OTP would have brought back "failed to fetch board data" | SRC (`ath11k_core_fetch_bdf`), OEM (DT board_id), BUILD gate on the built rootfs |
+| ~~board-2.bin resolves for any OTP board id~~ **superseded:** board-2.bin carries exactly two variant-qualified keys (OTP 255 and the stock selector 36/96) and no fallback | the earlier chip-id fallback served any OTP silently; stock CNSS loads the DT selector whatever the OTP says (OEM binary), so an unknown OTP is now reported (selfdiag S3.20) and fixed by adding that exact id | OEM binary + SRC + BUILD (`board2.py scoped --eu`); see `final-rf-compatibility-audit.md` |
 | **0016** wcss-sec: no inline coredump | Q6 crash held both radios down 5 min | SRC + REL (IPQ6018 HW), main `b97760cbc9` |
 | **0017** `ax23_radios=` bring-up profiles | isolate each radio and the simultaneous start-up memory peak on the first boot | BUILD, 10/10 logic tests |
 | **0018** RX rings aligned with the reference profiles | 0002 had two unreferenced values | SRC review |
@@ -105,12 +105,13 @@ hashes and `config@mp02.1`. Board data repacked with 2 explicit variant-qualifie
     install), so return it unopened.
 
 ## Source-tree changes after this image
+- Wi-Fi compatibility audit: `final-rf-compatibility-audit.md` (stock CNSS ignores OTP when the DT selector is set; the stock EU BDFs show the zeroed target-power pattern that capped AX55 v1 at 13 dBm). Selfdiag S3.20 (OTP board id per radio), S3.21 (AP TX power) and the S3.7 extension are streamed at test time, so no rebuild is needed.
 - `ax23-selfdiag.sh` S2.8 (GPIO 26/39 claim and mux, read-only) and the 1 G SGMII trunk variant (`patches/variants/trunk-1g-sgmii.patch`, BUILD-checked, not in `series`) were added after the image above. The self-diagnostic is streamed from the checkout at test time, so S2.8 works with this image without a rebuild, but it was not part of the validated test set. Neither changes executable firmware code, so the image and its SHA256 stay as stated.
 
 ## Stage status
 | Stage | Status |
 |---|---|
-| **A** offline engineering readiness | **COMPLETE**: image integrity (FIT hashes, config), correct firmware/board files (any OTP), valid DTB (51 checks incl. 16 read-only partitions), source-level memory audit, upstream fixes, build, focused tests (7 unit suites + static + NAND lab + twin), RAM-boot safety audit, remaining uncertainty documented |
+| **A** offline engineering readiness | **COMPLETE**: image integrity (FIT hashes, config), correct firmware/board files (OTP 255 + stock selectors 36/96; unknown OTP reported by S3.20), valid DTB (51 checks incl. 16 read-only partitions), source-level memory audit, upstream fixes, build, focused tests (7 unit suites + static + NAND lab + twin), RAM-boot safety audit, remaining uncertainty documented |
 | **B** physical functionality | **NOT STARTED**: needs the unit + UART |
 | **C** physical stability | **NOT STARTED** |
 | **D** persistent installation | **BLOCKED** by design until B/C pass and the owner separately authorizes |
