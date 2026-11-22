@@ -136,8 +136,27 @@ echo "$D" | grep -q "failed to fetch board\|failed to load board data" && r S3.4
 	|| r S3.4 PASS "no board-data fetch/load failure" ""
 echo "$D" | grep -E "ath11k.*fw_build_id" | while read -r x; do r S3.5 INFO "ath11k firmware" "$x"; done
 echo "$D" | grep -iE "ath11k.*(FW memory mode|Multipd|hw1.0)" | head -6 | while read -r x; do r S3.6 INFO "ath11k probe" "$x"; done
-echo "$D" | grep -q "regd update : -22\|failed register the radio" && r S3.7 FAIL "regulatory init" "regd update failed (EX511 v2 saw this with a stock 5 GHz BDF)" \
+echo "$D" | grep -q "regd update : -22\|failed register the radio\|Invalid regulatory domain detected" && r S3.7 FAIL "regulatory init" "regd update failed or cfg80211 rejected a firmware rule (EX511 v2 saw -22 with a stock 5 GHz BDF)" \
 	|| r S3.7 PASS "no regd update failure" ""
+# --- board-id-check begin (unit-tested: tests/unit/test_selfdiag_boardid.sh)
+# board_id_check DEV EXPECTED... : reads dmesg on stdin, prints "ok|missing|mismatch <id>"
+board_id_check() {
+	dev=$1; shift
+	id=$(grep -E "ath11k $dev: chip_id .* board_id 0x[0-9a-fA-F]+" | tail -1 | sed -E 's/.* board_id (0x[0-9a-fA-F]+).*/\1/' | tr 'A-F' 'a-f')
+	[ -n "$id" ] || { echo missing; return; }
+	for e in "$@"; do [ "$((id))" = "$((e))" ] && { echo "ok $id"; return; }; done
+	echo "mismatch $id"
+}
+# --- board-id-check end
+for pair in "c000000.wifi 0xff 0x24" "b00a040.wifi 0xff 0x60"; do
+	dev=${pair%% *}; ids=${pair#* }	# keep the positional parameters: $1 (--bundle) is read further down
+	res=$(echo "$D" | board_id_check "$dev" $ids)
+	case "$res" in
+	ok*) r S3.20 PASS "$dev OTP board id is packaged" "${res#ok }" ;;
+	missing) r S3.20 INFO "$dev OTP board id" "no chip_id line (radio held or not started)" ;;
+	*) r S3.20 FAIL "$dev OTP board id not packaged" "${res#mismatch } (stock loads the DT selector regardless of OTP: add exactly this id for the same EU payload)" ;;
+	esac
+done
 alloc_errors=$(echo "$D" | grep -iE "ath11k.*(-12|-ENOMEM|failed to set ?up|failed to alloc|qmi failed memory)" | head -4)
 [ -z "$alloc_errors" ] || r S3.8 FAIL "ath11k allocation/setup failure" "$alloc_errors"
 profile=$(cat /tmp/ax23_radio_profile 2>/dev/null)
@@ -165,6 +184,12 @@ done
 r S3.11 INFO "regulatory domain" "$(iw reg get 2>/dev/null | grep -m1 country)"
 have iw && for dev in $(iw dev 2>/dev/null | awk '/Interface/{print $2}'); do
 	r S3.12 INFO "vif $dev" "type=$(iw dev $dev info | awk '/type/{print $2}') chan=$(iw dev $dev info | awk '/channel/{print $2,$5,$6}') stations=$(iw dev $dev station dump 2>/dev/null | grep -c ^Station)"
+	# AX55 v1 (same stock selectors) capped at 13 dBm from zeroed target-power tables in the stock BDF
+	tp=$(iw dev "$dev" info 2>/dev/null | awk '/txpower/{print $2}')
+	if [ -n "$tp" ] && [ "$(iw dev "$dev" info | awk '/type/{print $2}')" = AP ]; then
+		awk -v t="$tp" 'BEGIN{exit !(t <= 13.0)}' && r S3.21 WARN "vif $dev TX power at or below 13 dBm" "${tp} dBm (compare with stock at the same channel/country)" \
+			|| r S3.21 INFO "vif $dev TX power" "${tp} dBm"
+	fi
 done
 c=$(echo "$D" | grep -ciE "firmware crashed|fatal error received|q6v5.*fatal|rproc.*crash|USER-PD DOG")
 [ "$c" -eq 0 ] && r S3.13 PASS "no Q6/WCSS firmware crash" "0" || r S3.13 FAIL "Q6/WCSS firmware crash" "$c events"
