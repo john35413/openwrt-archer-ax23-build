@@ -1,0 +1,66 @@
+{
+  "project": "AX23_V2_OPENWRT",
+  "repository": "https://github.com/john35413/DuinoCoinUSB_ESP8266",
+  "branch": "claude/openwrt-archer-ax23-v2-5vtpoe",
+  "source_state": {
+    "firmware_code_revision_built": "8673c2e6a001fce6271d11700bfa1d27dc51edc9",
+    "latest_host_test_revision": "bd2326a5002eca746ce3edcdff5b7cb2913188ae",
+    "diagnostic_revision": "ec07e66362f4aba0ce73bc7970d0f33488c012fd",
+    "numbered_firmware_patches": 27,
+    "openwrt_build_tree_revision": "d0e975060d5c71565e0a62abbddf48ef1312478c",
+    "patch_0026_compiled": true,
+    "patch_0027_compiled": true
+  },
+  "build_state": {
+    "status": "complete",
+    "target": "qualcommax/ipq50xx/tplink_archer-ax23-v2",
+    "rootfs": "initramfs",
+    "kernel": "6.18.55",
+    "wireless_backports": "7.2",
+    "artifact": "artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb",
+    "size_bytes": 13330704,
+    "sha256": "6d85f2a82117008fc991ffdea54a7fc64a77f2616bdf02f5b9bcabd7a059a9ff",
+    "artifact_local_only": true,
+    "validator": {"pass": 77, "info": 1, "fail": 0},
+    "image_matches_claude_cloud_artifact": false,
+    "full_firmware_rebuild_required_for_host_test_fix": false
+  },
+  "diagnostics": {
+    "source": "tests/hardware/ax23-selfdiag.sh",
+    "embedded_in_firmware": false,
+    "delivery": "streamed from PC over SSH",
+    "readonly_redaction_tests": "pass"
+  },
+  "tests": {
+    "shell_suites_pass": 9,
+    "shell_suites_skip": 1,
+    "python_unit_tests_pass": 18,
+    "static_checks": "pass; dev DTB 53/53",
+    "skips": [
+      "ubireader_extract_images dependency unavailable",
+      "EU ART count fixture subchecks unavailable"
+    ]
+  },
+  "hardware": {
+    "router_accessed": false,
+    "physical_validation": "not performed",
+    "verdict": "CONDITIONAL GO for RAM boot only after checklist prerequisites",
+    "unresolved": [
+      "UART level and actual pins",
+      "passive GPIO 26/39 reset mapping and polarity",
+      "bootloader RAM load and FIT signature acceptance",
+      "live MTD/UBI read-only state",
+      "dual-radio BDF/calibration/regulatory acceptance",
+      "Ethernet cold boot and frame transfer",
+      "measured RF output",
+      "physical memory fragmentation and Q6 recovery"
+    ]
+  },
+  "reports": [
+    "reports/build-manifest.json",
+    "reports/final-codex-adversarial-audit.md",
+    "reports/CODEX_FINAL_HANDOVER.md",
+    "reports/first-ram-boot-checklist.md",
+    "reports/artifacts-dev.txt"
+  ]
+}

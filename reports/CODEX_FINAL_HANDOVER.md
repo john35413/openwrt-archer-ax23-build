@@ -1,11 +1,33 @@
-# Preliminary Codex handover
+# Codex final handover
 
-Baseline 9576d3ea680aabcf9a14eb905c97ad99a7d430b8. Latest local outer commit is the parent repository's current `git rev-parse HEAD`. This handover remains preliminary until a new build and validation are complete. No push was made.
+**State:** Local build and offline validation complete; physical use remains conditional. The handover and source changes are published on the existing development branch. No router operation occurred.
 
-No new numbered patch was justified. Diagnostic correction ec07e66 changes `tests/hardware/ax23-selfdiag.sh`: cumulative trunk counters now carry INFO status, ART byte counts no longer imply transmit-power fields, and an unfamiliar OTP ID requires board evidence before mapping. See [the adversarial audit](final-codex-adversarial-audit.md).
+## Revisions
 
-The prepared inner OpenWrt source is d0e9750 after applying outer 0026 and 0027. Its kernel source has inner 0821; `build/backports-7.2` has inner 965. These prepared files have not been compiled locally. The local OpenWrt build directory, downloads, toolchain and cached objects remain intact.
+- Starting Claude checkpoint: `9576d3ea680aabcf9a14eb905c97ad99a7d430b8`.
+- Previous Codex firmware-source checkpoint: `8673c2e6a001fce6271d11700bfa1d27dc51edc9`.
+- Current host-test correction checkpoint: `bd2326a5002eca746ce3edcdff5b7cb2913188ae` (`tests: decode dtc string-list encoded radio address cells`).
+- Prepared OpenWrt tree: `d0e975060d5c71565e0a62abbddf48ef1312478c`; all 27 ordered patches applied. 0026 is inner commit `4f8bf04`; 0027 is `d0e9750`.
 
-Focused checks: `bash tests/unit/test_mpd_recovery.sh` passed its prepared-source model and reverse-patch negative cases; the actual-source ring allocator and cleanup models passed; ShellCheck, `sh -n` and the read-only selfdiag test passed. The ring and trunk wrapper scripts skip because there is no locally prepared mac80211 package tree or compiled reference DTB. No new image was produced. Claude's reported ITB is not independently present or hashed here.
+## Build and image
 
-Next action: use the existing build cache for a targeted incremental build of the updated kernel/mac80211 and image, then run `tools/validate-artifacts.sh` on the resulting tree. Verify the new ITB checksum, selected FIT configuration, embedded modules/DTB, NAND flags and diagnostics before deciding on physical RAM boot. The GPIO 26/39 trace, dual-radio calibration and live Q6 recovery require physical observations. Do not treat the test models as hardware evidence.
+The existing WSL tree and caches were reused. `tools/build-dev.sh --variant dev --resume --jobs 4` completed. A WindowsApps path inherited by WSL initially caused GNU `find -execdir` to fail during package install; a Linux-only PATH scoped to the build process fixed it without changing system settings.
+
+Local-only image: `/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT/artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb` (13,330,704 bytes, SHA256 `6d85f2a82117008fc991ffdea54a7fc64a77f2616bdf02f5b9bcabd7a059a9ff`). FIT `config@mp02.1`, kernel load/entry `0x41000000`. The image was not uploaded to GitHub. Claude's earlier cloud image is a separate build.
+
+Artifact validator: 77 PASS, 1 INFO, 0 FAIL. It confirms 16 read-only DT partitions, target/FIT, EU board data, embedded modules/startup hooks and the compiled 0026/0027 objects. `qcom_q6v5_mpd.o` contains `q6_wcss_recover_userpds`; patched backports `ath11k/dp.o` compiled with exact allocation sizes.
+
+Tests: nine shell suites PASS, one SKIP (`ubireader_extract_images` unavailable); 18 Python unit tests PASS; static runner PASS, dev DTB 53 checks PASS. Two EU fixture subchecks in the calibration-region suite are SKIP. Mock recovery tests are not proof of kernel concurrency or hardware behavior.
+
+## Findings and changes
+
+- Validation uncovered a checker defect missed earlier: dtc renders the valid IPQ5018 BDF address `0x4c400000` as the string list `"L@", ""`; the parser mishandled string lists. Fixed `tests/static/check_dtb.py` and added three regression cases in `tests/unit/test_tools.py`. The FIT DTB now passes. Host test only; no firmware rebuild required.
+- The earlier S2.4 stale-counter and S3.22 ART/BDF semantic corrections remain in `ec07e66` (`tests/hardware/ax23-selfdiag.sh`). This script is not embedded; stream it from the PC over SSH using `--bundle`.
+- Source review found no closed root/user remoteproc workqueue wait cycle in examined paths. Runtime races, SCM behavior, repeated recovery and OFFLINE-state recovery remain unproven. DMA source cleanup and compiled patch 0027 checks pass.
+- 2.5 G HSGMII endpoints are internally consistent. GPIO 26/39 switch reset mapping remains unresolved; do not boot until passively traced. No RF-power conclusions are supported. No intended NAND write path was found; runtime MTD/UBI state still needs read-only confirmation.
+
+## Readiness and next action
+
+**CONDITIONAL GO for RAM boot only after** confirming exact EU v2.0 hardware, measured UART voltage/pins, stock recovery availability, bootloader RAM/FIT/signature acceptance without bypass, and passive GPIO 26/39 wiring/polarity. Otherwise stop. No persistent image is authorized; never `saveenv`, flash or run sysupgrade.
+
+The artifact exists only on the Windows PC's WSL filesystem. Claude can access the pushed source, this handover, reports and manifests through GitHub, but cannot access that local image or private local EU board data. Recompute the image hash locally before any later use. See `reports/build-manifest.json`, `reports/final-codex-adversarial-audit.md` and `reports/first-ram-boot-checklist.md`.

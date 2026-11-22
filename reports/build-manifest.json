@@ -1,0 +1,138 @@
+{
+  "project": "TP-Link Archer AX23 EU V2.0 OpenWrt RAM-only development image",
+  "status": "built-and-independently-validated-offline",
+  "built_utc": "2026-11-22T07:48:39Z",
+  "source": {
+    "outer_repository": "https://github.com/john35413/DuinoCoinUSB_ESP8266",
+    "branch": "claude/openwrt-archer-ax23-v2-5vtpoe",
+    "outer_firmware_source_commit": "8673c2e6a001fce6271d11700bfa1d27dc51edc9",
+    "outer_current_host_test_commit": "bd2326a5002eca746ce3edcdff5b7cb2913188ae",
+    "diagnostic_source_commit": "ec07e66362f4aba0ce73bc7970d0f33488c012fd",
+    "openwrt_build_tree_commit": "d0e975060d5c71565e0a62abbddf48ef1312478c",
+    "openwrt_base_commit": "98b1185d039344553aaf8270d0661cfad4f0a54d",
+    "ax23_reference_commit": "93028b47d291e251dc108de5fbd8bd3f77a9300c",
+    "applied_project_patches": 27,
+    "patch_series": "patches/openwrt/series",
+    "patch_0026": "4f8bf04d64d48d2e80a5bb6441ae34864e480c9b",
+    "patch_0027": "d0e975060d5c71565e0a62abbddf48ef1312478c",
+    "applied_patch_series": [
+      "0001-base-files-caldata-fix-ath11k_remove_regdomain-witho.patch",
+      "0002-mac80211-ath11k-smaller-host-RX-rings-in-FW-memory-m.patch",
+      "0003-qualcommax-ipq50xx-add-board-data-package-for-Archer.patch",
+      "0004-qualcommax-ipq50xx-archer-ax23-v2-fix-Wi-Fi-LED-phy-.patch",
+      "0005-qualcommax-ipq50xx-refuse-sysupgrade-on-Archer-AX23-.patch",
+      "0006-qualcommax-pcs-qca-uniphy-clear-the-mode-select-for-.patch",
+      "0007-qualcommax-pcs-qca-uniphy-re-resolve-the-link-on-a-U.patch",
+      "0008-qualcommax-pcs-qca-uniphy-fix-macro-and-clock-callba.patch",
+      "0009-qualcommax-ipq50xx-program-the-UNIPHY-at-gmac-probe.patch",
+      "0010-wifi-scripts-do-not-let-another-radio-s-00-country-b.patch",
+      "0011-uboot-envtools-qualcommax-add-Archer-AX23-v2.patch",
+      "0012-mac80211-ath11k-smaller-TX-completion-ring-in-FW-mem.patch",
+      "0013-mac80211-ath11k-ath12k-backport-mac_phy_caps-stride-.patch",
+      "0014-mac80211-backport-ath11k-and-mac80211-fixes-from-Ope.patch",
+      "0015-qualcommax-ipq50xx-archer-ax23-v2-make-every-partiti.patch",
+      "0016-qualcommax-wcss-sec-don-t-hold-firmware-recovery-for.patch",
+      "0017-qualcommax-ipq50xx-archer-ax23-v2-radio-bring-up-pro.patch",
+      "0018-mac80211-ath11k-low-memory-RX-rings-follow-the-refer.patch",
+      "0019-mac80211-ath11k-unwind-the-requested-descriptor-banks.patch",
+      "0020-qualcommax-ax23-skip-implicit-ubi-attach.patch",
+      "0021-qualcommax-report-incomplete-radio-holds.patch",
+      "0022-mac80211-ath11k-unwind-partial-dp-startup.patch",
+      "0023-qualcommax-preserve-AX23-factory-regulatory-calibration.patch",
+      "0024-qualcommax-ipq5018-keep-CMN-bus-clocks.patch",
+      "0025-qualcommax-wait-for-RTL8367S-VB-chip-and-SerDes-reset.patch",
+      "0026-qualcommax-mpd-recover-user-PDs-with-the-root-PD.patch",
+      "0027-mac80211-ath11k-request-exact-ring-sizes-from-the-DMA-allocator.patch"
+    ]
+  },
+  "feeds": {
+    "packages": "a16d10144dd3f854a57d9a512dfa84f990b45d65",
+    "luci": "4bc2f85da82894c6a5d28ab1b610ca6e6ffc29ba",
+    "routing": "4b9891b9136259f93294a424507ed24c5e8c1cbd"
+  },
+  "toolchain": {
+    "environment": "WSL2 Ubuntu, Linux 6.6.87.2-microsoft-standard-WSL2",
+    "host_gcc": "15.2.0",
+    "target_gcc": "14.4.0",
+    "kernel": "Linux 6.18.55",
+    "wireless_backports": "7.2"
+  },
+  "target": {
+    "board": "tplink,archer-ax23-v2",
+    "profile": "qualcommax/ipq50xx/tplink_archer-ax23-v2",
+    "rootfs": "initramfs",
+    "fit_configuration": "config@mp02.1",
+    "wifi_firmware_package": "ath11k-firmware-ipq5018-qcn6122 2024.10.14~15f05012-r1",
+    "radio_memory_mode": 2,
+    "eu_board_identities": {
+      "IPQ5018": [
+        36,
+        255
+      ],
+      "QCN6122": [
+        96,
+        255
+      ]
+    },
+    "ethernet_default": "2.5 Gbps HSGMII",
+    "optional_1g_variant_in_default_patch_series": false,
+    "fit_signature": "No FIT signature node; hash nodes verified. Bootloader signature policy is unverified; do not bypass it."
+  },
+  "artifact": {
+    "filename": "openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb",
+    "local_path": "/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT/artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb",
+    "bytes": 13330704,
+    "sha256": "6d85f2a82117008fc991ffdea54a7fc64a77f2616bdf02f5b9bcabd7a059a9ff",
+    "kernel_load": "0x41000000",
+    "kernel_entry": "0x41000000",
+    "dtb_bytes": 26591,
+    "sha256_independently_recomputed": true,
+    "published_binary": false
+  },
+  "compiled_patch_evidence": {
+    "0026": {
+      "source": "build/dev/openwrt/build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq50xx/linux-6.18.55/drivers/remoteproc/qcom_q6v5_mpd.c",
+      "object": "build/dev/openwrt/build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq50xx/linux-6.18.55/drivers/remoteproc/qcom_q6v5_mpd.o",
+      "object_sha256": "76a07fdc81d8e6fbce2ddf4f27cf01b57c0efa531da4140b0edff414e5c7083c",
+      "symbol": "q6_wcss_recover_userpds",
+      "evidence": "object newer than patched source; symbol present; linked into CONFIG_QCOM_Q6V5_MPD=y kernel; artifact validator passed"
+    },
+    "0027": {
+      "source": "build/dev/openwrt/build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq50xx/mac80211-regular/backports-7.2/drivers/net/wireless/ath/ath11k/dp.c",
+      "object": "build/dev/openwrt/build_dir/target-aarch64_cortex-a53_musl/linux-qualcommax_ipq50xx/mac80211-regular/backports-7.2/drivers/net/wireless/ath/ath11k/dp.o",
+      "object_sha256": "0ee6ffb4c92c4b7313037d62b6faab22615a461a328acd8b1042f458463eaff7",
+      "evidence": "object newer than patched source; packaged ath11k module and exact ring-size source/object checks passed"
+    }
+  },
+  "validation": {
+    "validator_report": "reports/artifacts-dev.txt",
+    "checks_pass": 77,
+    "informational": 1,
+    "failures": 0,
+    "fit_hashes_configuration_addresses_and_kernel_extent": "PASS",
+    "dtb_read_only_flash_partitions": "16/16 PASS",
+    "both_radios_firmware_board_data_startup_hooks": "PASS",
+    "nand_mtd_kernel_config_and_sysupgrade_interlock": "PASS",
+    "patch_0026_and_0027_compiled_object_checks": "PASS",
+    "unit_shell_suites": "9 PASS, 1 SKIP (ubireader_extract_images unavailable)",
+    "python_unit_tests": "18 PASS",
+    "static_checks": "PASS; dev DTB checks 53/53; baseline DTB subcheck skipped because no baseline image was built",
+    "eu_calregion_fixture_subchecks": "SKIP (local stock EU fixtures unavailable)",
+    "hardware_validation": "NOT PERFORMED",
+    "rootfs_size_kib": 29816
+  },
+  "diagnostics": {
+    "source": "tests/hardware/ax23-selfdiag.sh",
+    "revision": "ec07e66362f4aba0ce73bc7970d0f33488c012fd",
+    "embedded_in_image": false,
+    "delivery": "streamed from the PC over SSH to the RAM-booted router; output remains on the PC",
+    "read_only_redaction_test": "PASS"
+  },
+  "limitations": [
+    "No access to the physical AX23; UART level/pinout, bootloader RAM-load/signature behavior, GPIO 26/39 wiring, RF calibration acceptance, live NAND/UBI state, ethernet traffic, and crash recovery remain unverified.",
+    "Local EU board data was used privately to build the image and is not committed.",
+    "This locally built artifact is separate from Claude's earlier cloud image and is not expected to share its hash."
+  ],
+  "build_log": "/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT/logs/dev/09-world.log",
+  "artifact_validation_log": "/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT/logs/dev/10-validate.log"
+}

@@ -1,37 +1,37 @@
 variant=dev
-built=2026-11-21T22:46:46Z
+built=2026-11-22T07:48:39Z
 openwrt=98b1185d039344553aaf8270d0661cfad4f0a54d
 ax23=93028b47d291e251dc108de5fbd8bd3f77a9300c
-build_tree_head=170e8cee73cdc9008ea91705a7b96007baa52cf9
-  170e8cee73 mac80211: ath11k: request exact ring sizes from the DMA allocator
-  69df21a237 qualcommax: mpd: recover user PDs with the root PD
-  5456e1079f net: dsa: realtek: wait for family D chip reset and SerDes settling
-  e75cd8023c clk: qcom: hold the IPQ5018 CMN PLL bus clocks during probe and use
-  b864c1e6f5 qualcommax: preserve factory regulatory calibration on both AX23 radios
-  8005350679 mac80211: ath11k: release WBM idle ring and TX FIFOs on setup failure
-  73e00a83d1 qualcommax: report incomplete radio holds and keep sequential startup ordered
-  bd607729f5 qualcommax: skip implicit UBI data attach on the AX23 RAM development target
-  641a86e457 mac80211: ath11k: unwind the descriptor banks owned by the caller
-  d76f9b0aa7 mac80211: ath11k: low-memory RX rings follow the reference profiles
-  a5a884786b qualcommax: ipq50xx: archer-ax23-v2: radio bring-up profiles
-  330ad1f486 qualcommax: wcss-sec: don't hold firmware recovery for a coredump
-  0b25ecfe1e qualcommax: ipq50xx: archer-ax23-v2: make every partition read-only
-  dd37b930ca mac80211: backport ath11k and mac80211 fixes from OpenWrt main
-  95b9414690 mac80211: ath11k/ath12k: backport mac_phy_caps stride fix
-  e859b85265 mac80211: ath11k: smaller TX completion ring in FW memory mode 2
-  1b4307e4d1 uboot-envtools: qualcommax: add Archer AX23 v2
-  4e744d767a wifi-scripts: do not let another radio's '00' country break hostapd
-  99f0859a47 qualcommax: ipq50xx: program the UNIPHY at gmac probe
-  dc30e77638 qualcommax: pcs-qca-uniphy: fix macro and clock callback slips
-  605e991c37 qualcommax: pcs-qca-uniphy: re-resolve the link on a USXGMII rate change
-  510cb7f053 qualcommax: pcs: qca-uniphy: clear the mode select for SGMII on UNIPHY0
-  05ce1b247b qualcommax: ipq50xx: refuse sysupgrade on Archer AX23 v2
-  cd845d204f qualcommax: ipq50xx: archer-ax23-v2: fix Wi-Fi LED phy mapping
-  bee3a907ca qualcommax: ipq50xx: add board-data package for Archer AX23 v2
-  74662c2ad8 mac80211: ath11k: smaller host RX rings in FW memory mode 2
-  3a16a426f0 base-files: caldata: fix ath11k_remove_regdomain without target
-  ee9da93312 stage: Sply-Dev AX23 v2 tree @ 93028b47d291e251dc108de5fbd8bd3f77a9300c
+build_tree_head=d0e975060d5c71565e0a62abbddf48ef1312478c
+  d0e9750 mac80211: ath11k: request exact ring sizes from the DMA allocator
+  4f8bf04 qualcommax: mpd: recover user PDs with the root PD
+  51c98b8 net: dsa: realtek: wait for family D chip reset and SerDes settling
+  22f3029 clk: qcom: hold the IPQ5018 CMN PLL bus clocks during probe and use
+  6e115a0 qualcommax: preserve factory regulatory calibration on both AX23 radios
+  adc91cc mac80211: ath11k: release WBM idle ring and TX FIFOs on setup failure
+  3f5a83f qualcommax: report incomplete radio holds and keep sequential startup ordered
+  8a18630 qualcommax: skip implicit UBI data attach on the AX23 RAM development target
+  764b0af mac80211: ath11k: unwind the descriptor banks owned by the caller
+  f5d0bac mac80211: ath11k: low-memory RX rings follow the reference profiles
+  a4e22d7 qualcommax: ipq50xx: archer-ax23-v2: radio bring-up profiles
+  0c98256 qualcommax: wcss-sec: don't hold firmware recovery for a coredump
+  07355c2 qualcommax: ipq50xx: archer-ax23-v2: make every partition read-only
+  582fb85 mac80211: backport ath11k and mac80211 fixes from OpenWrt main
+  4244880 mac80211: ath11k/ath12k: backport mac_phy_caps stride fix
+  905d792 mac80211: ath11k: smaller TX completion ring in FW memory mode 2
+  382e628 uboot-envtools: qualcommax: add Archer AX23 v2
+  9f8088b wifi-scripts: do not let another radio's '00' country break hostapd
+  5572cff qualcommax: ipq50xx: program the UNIPHY at gmac probe
+  9b830fd qualcommax: pcs-qca-uniphy: fix macro and clock callback slips
+  e60dd40 qualcommax: pcs-qca-uniphy: re-resolve the link on a USXGMII rate change
+  67875d8 qualcommax: pcs: qca-uniphy: clear the mode select for SGMII on UNIPHY0
+  13e7bc8 qualcommax: ipq50xx: refuse sysupgrade on Archer AX23 v2
+  744f2d6 qualcommax: ipq50xx: archer-ax23-v2: fix Wi-Fi LED phy mapping
+  4b97f23 qualcommax: ipq50xx: add board-data package for Archer AX23 v2
+  5732310 mac80211: ath11k: smaller host RX rings in FW memory mode 2
+  0986d66 base-files: caldata: fix ath11k_remove_regdomain without target
+  09ed205 stage: Sply-Dev AX23 v2 tree @ 93028b47d291e251dc108de5fbd8bd3f77a9300c
 feed_packages=a16d10144dd3f854a57d9a512dfa84f990b45d65
 feed_luci=4bc2f85da82894c6a5d28ab1b610ca6e6ffc29ba
 feed_routing=4b9891b9136259f93294a424507ed24c5e8c1cbd
-host=Linux 6.18.44-fc-v726 x86_64 gcc=13.3.0
+host=Linux 6.6.87.2-microsoft-standard-WSL2 x86_64 gcc=15.2.0
