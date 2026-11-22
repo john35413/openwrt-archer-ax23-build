@@ -21,9 +21,14 @@
     "size_bytes": 13330704,
     "sha256": "6d85f2a82117008fc991ffdea54a7fc64a77f2616bdf02f5b9bcabd7a059a9ff",
     "artifact_local_only": true,
-    "validator": {"pass": 77, "info": 1, "fail": 0},
+    "validator": {
+      "pass": 77,
+      "info": 1,
+      "fail": 0
+    },
     "image_matches_claude_cloud_artifact": false,
-    "full_firmware_rebuild_required_for_host_test_fix": false
+    "full_firmware_rebuild_required_for_host_test_fix": false,
+    "raw_logs_local_only": true
   },
   "diagnostics": {
     "source": "tests/hardware/ax23-selfdiag.sh",

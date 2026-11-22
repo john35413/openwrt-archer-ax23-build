@@ -13,7 +13,7 @@
 
 The existing WSL tree and caches were reused. `tools/build-dev.sh --variant dev --resume --jobs 4` completed. A WindowsApps path inherited by WSL initially caused GNU `find -execdir` to fail during package install; a Linux-only PATH scoped to the build process fixed it without changing system settings.
 
-Local-only image: `/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT/artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb` (13,330,704 bytes, SHA256 `6d85f2a82117008fc991ffdea54a7fc64a77f2616bdf02f5b9bcabd7a059a9ff`). FIT `config@mp02.1`, kernel load/entry `0x41000000`. The image was not uploaded to GitHub. Claude's earlier cloud image is a separate build.
+Local-only image: `/home/jfits/DuinoCoinUSB_ESP8266/AX23_V2_OPENWRT/artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb` (13,330,704 bytes, SHA256 `6d85f2a82117008fc991ffdea54a7fc64a77f2616bdf02f5b9bcabd7a059a9ff`). FIT `config@mp02.1`, kernel load/entry `0x41000000`. The image was not uploaded to GitHub. Raw build/test logs under `logs/dev/` are also local-only; GitHub has the concise validator report and build manifest, not the raw compiler log. Claude's earlier cloud image is a separate build.
 
 Artifact validator: 77 PASS, 1 INFO, 0 FAIL. It confirms 16 read-only DT partitions, target/FIT, EU board data, embedded modules/startup hooks and the compiled 0026/0027 objects. `qcom_q6v5_mpd.o` contains `q6_wcss_recover_userpds`; patched backports `ath11k/dp.o` compiled with exact allocation sizes.
 
