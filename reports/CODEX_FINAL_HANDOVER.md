@@ -1,12 +1,12 @@
 # Codex final handover
 
-**State:** Standalone-repository migration in progress. The local build and offline validation are complete; physical use remains conditional. No router operation occurred.
+**State:** Standalone-repository migration complete. The public repository is live; `main` is the baseline and `dev` is the active development branch. The local build and offline validation are complete; physical use remains conditional. No router operation occurred.
 
 ## Revisions
 
 - Starting Claude checkpoint: `9576d3ea680aabcf9a14eb905c97ad99a7d430b8`.
 - Latest imported legacy branch commit: `6847cff6fc5a7bea141c42ccde19d0c4f9f972f4`; it adds `reports/final-validation-and-ram-load-conclusions.md`.
-- Standalone repository: `https://github.com/john35413/openwrt-archer-ax23-build`; active branch `dev`, default baseline `main`.
+- Standalone repository: `https://github.com/john35413/openwrt-archer-ax23-build` (public); default branch `main`; active development branch `dev`.
 - Standalone local path: `/home/jfits/openwrt-archer-ax23-build`.
 - Previous Codex firmware-source checkpoint: `8673c2e6a001fce6271d11700bfa1d27dc51edc9`.
 - Current host-test correction checkpoint: `bd2326a5002eca746ce3edcdff5b7cb2913188ae` (`tests: decode dtc string-list encoded radio address cells`).

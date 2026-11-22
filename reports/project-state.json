@@ -82,6 +82,10 @@
     "raw_logs_removed_from_all_imported_history": true,
     "local_checkout": "/home/jfits/openwrt-archer-ax23-build",
     "cache_reuse": "build/, upstream/ and board-data/ are ignored local symlinks to the preserved original project; no large trees were copied",
-    "local_artifact": "artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb (local symlink to original artifact)"
+    "local_artifact": "artifacts/ram-only/dev/openwrt-qualcommax-ipq50xx-tplink_archer-ax23-v2-initramfs-uImage.itb (local symlink to original artifact)",
+    "destination_repository": "https://github.com/john35413/openwrt-archer-ax23-build",
+    "status": "published; main is default, dev is active",
+    "public": true,
+    "tracked_source_files": 162
   }
 }
